@@ -1,0 +1,8 @@
+# Parâmetros reais (e-mails, IDs) ficam fora do repositório
+infra/parametros.json
+# Ambiente local
+.venv/
+__pycache__/
+*.db
+pacote/
+pacote.zip

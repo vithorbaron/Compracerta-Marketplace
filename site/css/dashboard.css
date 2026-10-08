@@ -1,0 +1,150 @@
+/* =========================================================
+   dashboard.css — específico do painel financeiro
+   Reaproveita os tokens de style.css (--laranja, --ink, etc.)
+   ========================================================= */
+
+body.dashboard-body {
+  background: var(--bg);
+}
+
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.dash-topbar .logo { font-size: 1.25rem; }
+.dash-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--laranja-claro);
+  color: var(--laranja-escuro);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+.dash-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.9rem;
+}
+
+.dash-wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px 24px 80px;
+}
+
+.dash-heading { margin-bottom: 28px; }
+.dash-heading h1 { font-size: 1.7rem; margin-bottom: 6px; }
+.dash-heading p { color: var(--ink-soft); font-size: 0.94rem; max-width: 60ch; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.stat-tile .stat-label {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: block;
+}
+.stat-tile .stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.stat-tile .stat-trend {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.stat-trend.up { color: var(--good); }
+.stat-trend.warn { color: #B7791F; }
+.stat-trend.neutral { color: var(--ink-soft); font-weight: 500; }
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.chart-card h2 { font-size: 1.05rem; margin-bottom: 2px; }
+.chart-card .chart-sub { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 16px; display: block; }
+.chart-card canvas { max-height: 260px; }
+
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.table-card h2 { font-size: 1.05rem; margin-bottom: 2px; }
+.table-card .chart-sub { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 16px; display: block; }
+
+.dash-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.dash-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  font-weight: 700;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.dash-table td { padding: 10px 10px; border-bottom: 1px solid var(--line); }
+.dash-table tr:last-child td { border-bottom: none; }
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.status-chip.aprovado { background: var(--good-tint); color: var(--good); }
+.status-chip.pendente { background: #FEF3D6; color: #B7791F; }
+.status-chip.recusado { background: var(--bad-tint); color: var(--bad); }
+
+@media (min-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 960px) {
+  .chart-grid { grid-template-columns: 1.3fr 1fr; }
+}
+
+.chart-svg-wrap svg { width: 100%; height: auto; }
+.table-scroll { overflow-x: auto; }
+.dash-aviso { color: var(--bad); margin: 0 0 16px; }

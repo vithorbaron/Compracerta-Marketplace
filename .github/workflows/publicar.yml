@@ -1,0 +1,44 @@
+name: Publicar aplicação
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "api/**", ".github/workflows/publicar.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Montar pacote (API + site)
+        run: |
+          mkdir pacote
+          cp -r api/app api/requirements.txt pacote/
+          cp -r site pacote/site
+          find pacote -name "__pycache__" -prune -exec rm -rf {} +
+          cd pacote && zip -qr ../pacote.zip .
+
+      - name: Entrar no Azure (OIDC, sem segredo guardado)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publicar no App Service
+        run: |
+          az webapp deploy \
+            --resource-group "${{ vars.AZURE_GRUPO }}" \
+            --name "${{ vars.AZURE_SITE }}" \
+            --src-path pacote.zip --type zip --async false

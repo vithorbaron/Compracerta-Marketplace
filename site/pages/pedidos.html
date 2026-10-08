@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.blob.core.windows.net https://images.unsplash.com; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="../js/seguranca-log.js"></script>
+<script src="../js/armazenamento.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/auth.js" data-exigir-sessao data-login="login.html"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meus pedidos — CompraCerta</title>
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/pedidos.css">
+</head>
+<body>
+
+<p class="study-banner">Projeto acadêmico — catálogo, carrinho e pagamento são 100% simulados.</p>
+
+<header class="site-header">
+  <div class="header-top">
+    <div class="container header-inner">
+      <a class="logo" href="../index.html">Compra<span>Certa</span></a>
+      <form class="search-form" id="form-busca" role="search" action="produtos.html" method="get">
+        <input type="search" id="campo-busca" name="busca" maxlength="100" placeholder="O que você está procurando?" aria-label="Buscar produtos">
+        <button type="submit" aria-label="Buscar">🔎</button>
+      </form>
+      <a class="cart-link" href="carrinho.html" aria-label="Carrinho">
+        🛒
+        <span id="contador-carrinho" class="cart-badge" hidden>0</span>
+      </a>
+    </div>
+  </div>
+  <nav class="category-nav" aria-label="Categorias">
+    <div class="container category-list">
+      <a href="produtos.html">Todas</a>
+      <a href="produtos.html?categoria=Smartphones">Smartphones</a>
+      <a href="produtos.html?categoria=Notebooks">Notebooks</a>
+      <a href="produtos.html?categoria=Computadores">Computadores</a>
+      <a href="produtos.html?categoria=Periféricos">Periféricos</a>
+      <a href="produtos.html?categoria=Monitores">Monitores</a>
+      <a href="produtos.html?categoria=Fones de ouvido">Fones de ouvido</a>
+      <a href="produtos.html?categoria=Acessórios">Acessórios</a>
+      <a href="produtos.html?categoria=Eletrônicos">Eletrônicos</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <div class="container section">
+    <h1 class="section-title pedidos-titulo">Meus pedidos</h1>
+    <p id="pedidos-aviso" class="pedidos-aviso" role="alert" hidden></p>
+    <p id="pedidos-vazio" class="empty-state" hidden>
+      Você ainda não fez nenhum pedido. <a href="produtos.html">Ver produtos</a>.
+    </p>
+    <div id="lista-pedidos" class="pedidos-lista"></div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom">
+      © 2026 CompraCerta. Projeto de estudo — não processa pagamentos reais.
+    </div>
+  </div>
+</footer>
+
+<script src="../js/config.js"></script>
+<script src="../data/produtos.js"></script>
+<script src="../js/dom.js"></script>
+<script src="../js/carrinho.js"></script>
+<script src="../js/pedidos.js"></script>
+
+</body>
+</html>

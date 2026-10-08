@@ -1,0 +1,161 @@
+/* =========================================================
+   auth.css — específico das páginas de cadastro e login
+   Reaproveita tokens de style.css (.field, .input, .btn,
+   --good/--bad) e o padrão visual de checkout.css
+   (result-icon, study-disclaimer) para manter consistência.
+   ========================================================= */
+
+.auth-header {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.auth-header .logo { font-size: 1.3rem; }
+
+.auth-shell {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 48px 20px 80px;
+}
+
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 30px 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.role-toggle {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-bottom: 22px;
+}
+.role-toggle-btn {
+  flex: 1;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.role-toggle-btn.active {
+  background: var(--surface);
+  color: var(--laranja-escuro);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--laranja-escuro);
+  margin-bottom: 10px;
+}
+
+.auth-card h1 { font-size: 1.5rem; margin-bottom: 6px; }
+
+.auth-sub {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin-bottom: 26px;
+}
+
+.form-banner {
+  display: none;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  font-size: 0.86rem;
+  margin-bottom: 18px;
+}
+.form-banner.visible { display: flex; }
+.form-banner.error { background: var(--bad-tint); color: var(--bad); border: 1px solid rgba(217, 48, 37, 0.22); }
+.form-banner.success { background: var(--good-tint); color: var(--good); border: 1px solid rgba(31, 146, 84, 0.22); }
+
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: -10px;
+  margin-bottom: 18px;
+}
+
+.password-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -8px 0 20px;
+  padding: 0;
+  list-style: none;
+}
+.password-checklist li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  transition: color 0.15s ease;
+}
+.password-checklist li::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+  font-size: 0.7rem;
+  top: 1px;
+}
+.password-checklist li.met {
+  color: var(--good);
+}
+.password-checklist li.met::before {
+  content: "●";
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.auth-footer a { color: var(--laranja-escuro); font-weight: 600; }
+.auth-footer a:hover { text-decoration: underline; }
+
+/* aviso de protótipo — mesmo padrão do .study-disclaimer usado no checkout */
+.auth-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--line);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+.auth-disclaimer svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-soft); }
+
+/* painel de confirmação (cadastro) — reaproveita a linguagem do result-icon do checkout */
+.confirm-panel { display: none; text-align: center; }
+.confirm-panel.visible { display: block; }
+.auth-card.is-confirmed .auth-form-group { display: none; }
+
+.confirm-panel .result-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  background: var(--good);
+  color: #fff;
+}
+.confirm-panel h1 { font-size: 1.4rem; margin-bottom: 8px; }
+.confirm-panel p { color: var(--ink-soft); font-size: 0.92rem; margin-bottom: 24px; }

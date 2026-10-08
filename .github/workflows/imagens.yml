@@ -1,0 +1,41 @@
+name: Enviar imagens dos produtos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  imagens:
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar imagens de origem
+        run: |
+          mkdir imagens
+          jq -c '.[]' infra/imagens/imagens-origem.json | while read -r item; do
+            id=$(echo "$item" | jq -r '.id')
+            url=$(echo "$item" | jq -r '.url')
+            case "$url" in https://images.unsplash.com/*) ;; *) echo "URL ignorada: $id"; continue ;; esac
+            curl -sSfL --max-time 60 --max-filesize 5000000 "$url" -o "imagens/produto-${id}.jpg"
+          done
+          ls imagens | wc -l
+
+      - name: Entrar no Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Enviar para o Blob Storage
+        run: |
+          az storage blob upload-batch \
+            --account-name "${{ vars.AZURE_ARMAZENAMENTO }}" \
+            --destination produtos --source imagens \
+            --pattern "produto-*.jpg" --content-type image/jpeg \
+            --auth-mode login --overwrite

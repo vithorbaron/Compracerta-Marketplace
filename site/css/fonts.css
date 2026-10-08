@@ -1,0 +1,28 @@
+/* Fontes servidas pelo próprio site (sem Google Fonts em tempo de execução).
+   Arquivos .woff2 (subconjunto latin) baixados de fonts.gstatic.com, canal
+   oficial do Google Fonts. Licença SIL Open Font License 1.1: ver
+   fonts/OFL-Inter.txt e fonts/OFL-Poppins.txt. */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../fonts/inter-latin-var.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/poppins-latin-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/poppins-latin-700.woff2") format("woff2");
+}

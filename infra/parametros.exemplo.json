@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "emailAlertas": { "value": "SEU-EMAIL@exemplo.com" },
+    "valorOrcamento": { "value": 250 },
+    "skuAppService": { "value": "B1" },
+    "operadores": {
+      "value": [
+        { "objectId": "00000000-0000-0000-0000-000000000001", "papel": "ceo" },
+        { "objectId": "00000000-0000-0000-0000-000000000002", "papel": "financeiro" },
+        { "objectId": "00000000-0000-0000-0000-000000000003", "papel": "rede" },
+        { "objectId": "00000000-0000-0000-0000-000000000004", "papel": "seguranca" },
+        { "objectId": "00000000-0000-0000-0000-000000000005", "papel": "seguranca" }
+      ]
+    },
+    "repositorioGithub": { "value": "vithorbaron/Compracerta-Marketplace" }
+  }
+}

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.blob.core.windows.net https://images.unsplash.com; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="../js/seguranca-log.js"></script>
+<script src="../js/armazenamento.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/auth.js" data-exigir-sessao data-login="login.html"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout — CompraCerta</title>
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/checkout.css">
+</head>
+<body>
+
+<p class="study-banner">Projeto acadêmico — catálogo, carrinho e pagamento são 100% simulados.</p>
+
+<header class="site-header">
+  <div class="header-top">
+    <div class="container header-inner">
+      <a class="logo" href="../index.html">Compra<span>Certa</span></a>
+      <form class="search-form" id="form-busca" role="search" action="produtos.html" method="get">
+        <input type="search" id="campo-busca" name="busca" maxlength="100" placeholder="O que você está procurando?" aria-label="Buscar produtos">
+        <button type="submit" aria-label="Buscar">🔎</button>
+      </form>
+      <a class="cart-link" href="carrinho.html" aria-label="Carrinho">
+        🛒
+        <span id="contador-carrinho" class="cart-badge" hidden>0</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container section">
+    <p id="checkout-vazio" class="empty-state" hidden>
+      Seu carrinho está vazio, então não há o que finalizar.
+      <a href="produtos.html">Ver produtos</a>.
+    </p>
+
+    <div id="checkout-conteudo" class="checkout-layout" hidden>
+      <nav id="indicador-etapas" aria-label="Etapas do checkout">
+        <div class="step-indicator-item" data-etapa-indicador="1">
+          <span class="step-number">1</span> Compra
+        </div>
+        <span class="step-divider"></span>
+        <div class="step-indicator-item" data-etapa-indicador="2">
+          <span class="step-number">2</span> Dados
+        </div>
+        <span class="step-divider"></span>
+        <div class="step-indicator-item" data-etapa-indicador="3">
+          <span class="step-number">3</span> Pagamento
+        </div>
+      </nav>
+
+      <!-- Etapa 1: dados da compra -->
+      <section class="checkout-step checkout-card" data-etapa="1">
+        <h2>Dados da compra</h2>
+        <div id="resumo-compra-lista"></div>
+        <div class="checkout-totals">
+          <div class="summary-line"><span>Subtotal</span><span id="resumo-subtotal">R$ 0,00</span></div>
+          <div class="summary-line"><span>Frete</span><span id="resumo-frete">Grátis</span></div>
+          <div class="summary-line total"><span>Total</span><span id="resumo-total">R$ 0,00</span></div>
+        </div>
+        <div class="checkout-actions">
+          <button type="button" id="btn-avancar-1" class="btn btn-primary btn-lg">Avançar</button>
+        </div>
+      </section>
+
+      <!-- Etapa 2: dados do comprador -->
+      <section class="checkout-step checkout-card" data-etapa="2" hidden>
+        <h2>Dados do comprador</h2>
+        <p class="privacy-note">
+          Privacidade: pedimos só o necessário para emitir e confirmar este pedido (nome, CPF, e-mail e telefone).
+          Esses dados não ficam salvos neste navegador e só são enviados quando você confirma o pagamento.
+        </p>
+        <p class="privacy-note">
+          Ambiente de demonstração: <b>não use seu CPF real</b>. Use um CPF de teste, como 529.982.247-25.
+        </p>
+        <form id="form-comprador" novalidate>
+          <div class="field">
+            <label for="comprador-nome">Nome completo</label>
+            <input type="text" id="comprador-nome" class="input" placeholder="Ex.: João da Silva" minlength="3" maxlength="100" autocomplete="name" required>
+            <span class="field-error" id="erro-comprador-nome"></span>
+          </div>
+          <div class="field">
+            <label for="comprador-cpf">CPF</label>
+            <input type="text" id="comprador-cpf" class="input" placeholder="000.000.000-00" inputmode="numeric" maxlength="14" pattern="[0-9]{3}\.?[0-9]{3}\.?[0-9]{3}-?[0-9]{2}" autocomplete="off" required>
+            <span class="field-error" id="erro-comprador-cpf"></span>
+          </div>
+          <div class="field">
+            <label for="comprador-email">E-mail</label>
+            <input type="email" id="comprador-email" class="input" placeholder="joao@email.com" maxlength="254" autocomplete="email" required>
+            <span class="field-error" id="erro-comprador-email"></span>
+          </div>
+          <div class="field">
+            <label for="comprador-telefone">Telefone</label>
+            <input type="tel" id="comprador-telefone" class="input" placeholder="(11) 91234-5678" inputmode="numeric" maxlength="20" autocomplete="tel" required>
+            <span class="field-error" id="erro-comprador-telefone"></span>
+          </div>
+        </form>
+        <div class="checkout-actions">
+          <button type="button" id="btn-voltar-2" class="btn btn-secondary btn-lg">Voltar</button>
+          <button type="button" id="btn-avancar-2" class="btn btn-primary btn-lg">Avançar</button>
+        </div>
+      </section>
+
+      <!-- Etapa 3: pagamento -->
+      <section class="checkout-step checkout-card" data-etapa="3" hidden>
+        <h2>Pagamento</h2>
+        <p class="study-disclaimer">
+          Simulação acadêmica: nenhuma cobrança real é feita. Escolha uma forma de pagamento fictícia
+          e clique em "Realizar transferência" para enviar o pedido. O valor final é confirmado pelo servidor.
+        </p>
+
+        <div class="payment-methods">
+          <label class="payment-option">
+            <input type="radio" name="metodoPagamento" value="pix" checked>
+            <span class="payment-option-label">
+              <span class="payment-option-title">Pix</span>
+              <span class="payment-option-desc">Simulação de pagamento instantâneo</span>
+            </span>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="metodoPagamento" value="cartao">
+            <span class="payment-option-label">
+              <span class="payment-option-title">Cartão</span>
+              <span class="payment-option-desc">Simulação de cartão de crédito</span>
+            </span>
+          </label>
+          <label class="payment-option">
+            <input type="radio" name="metodoPagamento" value="transferencia">
+            <span class="payment-option-label">
+              <span class="payment-option-title">Transferência</span>
+              <span class="payment-option-desc">Simulação de transferência entre contas</span>
+            </span>
+          </label>
+        </div>
+        <p id="erro-pagamento" class="field-error" role="alert" hidden></p>
+
+        <div class="checkout-actions">
+          <button type="button" id="btn-voltar-3" class="btn btn-secondary btn-lg">Voltar</button>
+          <button type="button" id="btn-realizar-transferencia" class="btn btn-primary btn-lg">Realizar transferência</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom">
+      © 2026 CompraCerta. Projeto de estudo — não processa pagamentos reais.
+    </div>
+  </div>
+</footer>
+
+<!-- Modal: processando / sucesso / erro -->
+<div id="modal-checkout" class="modal-overlay" hidden>
+  <div id="modal-processando" class="modal-panel" hidden>
+    <div class="spinner" aria-hidden="true"></div>
+    <h3>Processando sua compra...</h3>
+    <p>Aguarde enquanto processamos sua solicitação.</p>
+  </div>
+
+  <div id="modal-sucesso" class="modal-panel" hidden>
+    <div class="result-icon success" aria-hidden="true">✓</div>
+    <h3>Compra realizada com sucesso!</h3>
+    <div class="result-details">
+      <div class="summary-line"><span>Número da transação</span><span id="sucesso-transacao-id">—</span></div>
+      <div class="summary-line"><span>Valor</span><span id="sucesso-valor">—</span></div>
+      <div class="summary-line"><span>CPF</span><span id="sucesso-cpf">—</span></div>
+      <div class="summary-line"><span>Status</span><span id="sucesso-status">—</span></div>
+    </div>
+    <p id="sucesso-aviso" class="result-warning" role="alert" hidden></p>
+    <a class="btn btn-primary btn-block" href="pedidos.html">Ver meus pedidos</a>
+    <a class="btn btn-secondary btn-block" href="../index.html">Voltar para a loja</a>
+  </div>
+
+  <div id="modal-erro" class="modal-panel" hidden>
+    <div class="result-icon error" aria-hidden="true">✕</div>
+    <h3>Não foi possível processar sua compra.</h3>
+    <p id="erro-mensagem">Tente novamente.</p>
+    <div class="modal-actions">
+      <button type="button" id="btn-fechar-erro" class="btn btn-secondary">Voltar</button>
+      <button type="button" id="btn-tentar-novamente" class="btn btn-primary">Tentar novamente</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/config.js"></script>
+<script src="../data/produtos.js"></script>
+<script src="../js/validacao.js"></script>
+<script src="../js/dom.js"></script>
+<script src="../js/carrinho.js"></script>
+<script src="../js/checkout.js"></script>
+
+</body>
+</html>

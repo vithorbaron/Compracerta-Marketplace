@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.blob.core.windows.net https://images.unsplash.com; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="js/seguranca-log.js"></script>
+<script src="js/armazenamento.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js" data-exigir-sessao data-login="pages/login.html"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CompraCerta — e-commerce</title>
+<meta name="description" content="Loja fictícia para fins acadêmicos: catálogo, carrinho e checkout simulados.">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<p class="study-banner">Projeto acadêmico — catálogo, carrinho e pagamento são 100% simulados.</p>
+
+<header class="site-header">
+  <div class="header-top">
+    <div class="container header-inner">
+      <a class="logo" href="index.html">Compra<span>Certa</span></a>
+      <form class="search-form" id="form-busca" role="search" action="pages/produtos.html" method="get">
+        <input type="search" id="campo-busca" name="busca" maxlength="100" placeholder="O que você está procurando?" aria-label="Buscar produtos">
+        <button type="submit" aria-label="Buscar">🔎</button>
+      </form>
+      <a class="account-link" id="link-conta" href="pages/login.html">
+        <span aria-hidden="true">👤</span>
+        <span id="texto-conta">Entrar</span>
+      </a>
+      <a class="account-link" id="link-pedidos" href="pages/pedidos.html" hidden>Meus pedidos</a>
+      <a class="account-link" id="link-painel" href="pages/dashboard.html" hidden>Painel</a>
+      <button class="account-link" id="botao-sair" type="button" hidden>Sair</button>
+      <a class="cart-link" href="pages/carrinho.html" aria-label="Carrinho">
+        🛒
+        <span id="contador-carrinho" class="cart-badge" hidden>0</span>
+      </a>
+    </div>
+  </div>
+  <nav class="category-nav" aria-label="Categorias">
+    <div class="container category-list">
+      <a href="pages/produtos.html">Todas</a>
+      <a href="pages/produtos.html?categoria=Smartphones">Smartphones</a>
+      <a href="pages/produtos.html?categoria=Notebooks">Notebooks</a>
+      <a href="pages/produtos.html?categoria=Computadores">Computadores</a>
+      <a href="pages/produtos.html?categoria=Periféricos">Periféricos</a>
+      <a href="pages/produtos.html?categoria=Monitores">Monitores</a>
+      <a href="pages/produtos.html?categoria=Fones de ouvido">Fones de ouvido</a>
+      <a href="pages/produtos.html?categoria=Acessórios">Acessórios</a>
+      <a href="pages/produtos.html?categoria=Eletrônicos">Eletrônicos</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <div class="container">
+    <section class="section section-hero">
+      <div class="hero-banner">
+        <span class="eyebrow">Ofertas da semana</span>
+        <h1>Tecnologia com preço justo, entrega rápida e simulação de ponta a ponta.</h1>
+        <p>Navegue pelo catálogo, monte seu carrinho e acompanhe uma compra do início ao fim, em um fluxo 100% acadêmico.</p>
+        <a class="btn btn-primary btn-lg" href="pages/produtos.html">Ver todos os produtos</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Ofertas em destaque</h2>
+        <a class="section-link" href="pages/produtos.html">Ver tudo →</a>
+      </div>
+      <div class="products-grid" id="grade-destaque"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Categorias</h2>
+      </div>
+      <div class="category-grid" id="grade-categorias"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">Produtos recomendados</h2>
+        <a class="section-link" href="pages/produtos.html">Ver tudo →</a>
+      </div>
+      <div class="products-grid" id="grade-recomendados"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <h4>Compra<span class="footer-logo-destaque">Certa</span></h4>
+        <p>Loja fictícia desenvolvida para um projeto acadêmico. Nenhum produto é vendido de verdade.</p>
+      </div>
+      <div>
+        <h4>Institucional</h4>
+        <ul>
+          <li>Sobre o projeto</li>
+          <li>Como funciona</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Ajuda</h4>
+        <ul>
+          <li>Perguntas frequentes</li>
+          <li>Trocas e devoluções (simulado)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Pagamento (simulado)</h4>
+        <ul>
+          <li>Pix</li>
+          <li>Cartão</li>
+          <li>Transferência</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2026 CompraCerta. Projeto de estudo — não processa pagamentos reais.
+    </div>
+  </div>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="data/produtos.js"></script>
+<script src="js/dom.js"></script>
+<script src="js/carrinho.js"></script>
+<script src="js/home.js"></script>
+
+</body>
+</html>

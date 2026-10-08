@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: https://*.blob.core.windows.net https://images.unsplash.com; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script src="../js/seguranca-log.js"></script>
+<script src="../js/armazenamento.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/auth.js" data-exigir-sessao data-login="login.html" data-exigir-papel="financeiro ceo" data-sem-permissao="../index.html"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel financeiro — CompraCerta</title>
+<meta name="description" content="Visão geral de vendas, estoque, clientes e transações — acesso do operador financeiro.">
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body class="dashboard-body">
+
+<p class="study-banner">Projeto acadêmico — painel do operador financeiro.</p>
+
+<header class="dash-topbar">
+  <div>
+    <a class="logo" href="../index.html">Compra<span>Certa</span></a>
+    <span class="dash-role-tag">Financeiro</span>
+  </div>
+  <div class="dash-account">
+    <span id="dashUsuario">—</span>
+    <button class="btn btn-secondary" id="dashSair" type="button">Sair</button>
+  </div>
+</header>
+
+<main class="dash-wrap">
+  <div class="dash-heading">
+    <h1>Visão geral do negócio</h1>
+    <p>Painel de leitura do operador financeiro: números agregados de vendas, estoque, clientes e transações — sem acesso a dados pessoais de clientes individuais.</p>
+  </div>
+
+  <p id="dashAviso" class="dash-aviso" role="alert" hidden></p>
+  <section class="stat-grid" id="statGrid" aria-label="Indicadores gerais"></section>
+
+  <section class="chart-grid">
+    <div class="chart-card">
+      <h2>Vendas — últimos 7 dias</h2>
+      <span class="chart-sub">Receita diária, em reais</span>
+      <div id="graficoVendas" class="chart-svg-wrap"></div>
+    </div>
+    <div class="chart-card">
+      <h2>Estoque por categoria</h2>
+      <span class="chart-sub">Soma de unidades disponíveis</span>
+      <div id="graficoEstoque" class="chart-svg-wrap"></div>
+    </div>
+  </section>
+
+  <section class="table-card">
+    <h2>Transações recentes</h2>
+    <span class="chart-sub">Sem identificação do cliente</span>
+    <div class="table-scroll">
+      <table class="dash-table" id="tabelaTransacoes">
+        <thead>
+          <tr><th>ID</th><th>Data</th><th>Forma de pagamento</th><th>Valor</th><th>Status</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="../js/config.js"></script>
+<script src="../data/produtos.js"></script>
+<script src="../js/dom.js"></script>
+<script src="../js/carrinho.js"></script>
+<script src="../js/dashboard.js"></script>
+
+</body>
+</html>

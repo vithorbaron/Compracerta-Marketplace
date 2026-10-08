@@ -1,0 +1,226 @@
+[
+ {
+  "id": 1,
+  "nome": "Smartphone Nova X 128GB",
+  "categoria": "Smartphones",
+  "precoCentavos": 189990,
+  "estoque": 23
+ },
+ {
+  "id": 2,
+  "nome": "Smartphone Nova X Plus 256GB",
+  "categoria": "Smartphones",
+  "precoCentavos": 269990,
+  "estoque": 15
+ },
+ {
+  "id": 3,
+  "nome": "Smartphone Zeta Lite 64GB",
+  "categoria": "Smartphones",
+  "precoCentavos": 89990,
+  "estoque": 40
+ },
+ {
+  "id": 4,
+  "nome": "Smartphone Zeta Pro 5G 256GB",
+  "categoria": "Smartphones",
+  "precoCentavos": 329990,
+  "estoque": 9
+ },
+ {
+  "id": 5,
+  "nome": "Notebook Nimbus 14 i5 8GB 256GB",
+  "categoria": "Notebooks",
+  "precoCentavos": 289990,
+  "estoque": 14
+ },
+ {
+  "id": 6,
+  "nome": "Notebook Nimbus 15 i7 16GB 512GB",
+  "categoria": "Notebooks",
+  "precoCentavos": 459990,
+  "estoque": 6
+ },
+ {
+  "id": 7,
+  "nome": "Vento Book 14 Ryzen 5 8GB",
+  "categoria": "Notebooks",
+  "precoCentavos": 259990,
+  "estoque": 18
+ },
+ {
+  "id": 8,
+  "nome": "Vento Book Pro Ryzen 7 16GB",
+  "categoria": "Notebooks",
+  "precoCentavos": 519990,
+  "estoque": 0
+ },
+ {
+  "id": 9,
+  "nome": "Desktop Office i3 8GB 256GB",
+  "categoria": "Computadores",
+  "precoCentavos": 199990,
+  "estoque": 20
+ },
+ {
+  "id": 10,
+  "nome": "Desktop Gamer i5 RTX 16GB",
+  "categoria": "Computadores",
+  "precoCentavos": 599990,
+  "estoque": 5
+ },
+ {
+  "id": 11,
+  "nome": "Mini PC Slim i5 8GB",
+  "categoria": "Computadores",
+  "precoCentavos": 239990,
+  "estoque": 12
+ },
+ {
+  "id": 12,
+  "nome": "All-in-One 24\" i5 8GB",
+  "categoria": "Computadores",
+  "precoCentavos": 379990,
+  "estoque": 7
+ },
+ {
+  "id": 13,
+  "nome": "Teclado Mecânico RGB",
+  "categoria": "Periféricos",
+  "precoCentavos": 28990,
+  "estoque": 55
+ },
+ {
+  "id": 14,
+  "nome": "Mouse Gamer 16000dpi",
+  "categoria": "Periféricos",
+  "precoCentavos": 14990,
+  "estoque": 60
+ },
+ {
+  "id": 15,
+  "nome": "Headset Gamer 7.1",
+  "categoria": "Periféricos",
+  "precoCentavos": 21990,
+  "estoque": 33
+ },
+ {
+  "id": 16,
+  "nome": "Webcam Full HD",
+  "categoria": "Periféricos",
+  "precoCentavos": 17990,
+  "estoque": 25
+ },
+ {
+  "id": 17,
+  "nome": "Monitor 24\" Full HD",
+  "categoria": "Monitores",
+  "precoCentavos": 79990,
+  "estoque": 28
+ },
+ {
+  "id": 18,
+  "nome": "Monitor 27\" 2K 144Hz",
+  "categoria": "Monitores",
+  "precoCentavos": 179990,
+  "estoque": 10
+ },
+ {
+  "id": 19,
+  "nome": "Monitor Gamer 24\" 165Hz",
+  "categoria": "Monitores",
+  "precoCentavos": 109990,
+  "estoque": 16
+ },
+ {
+  "id": 20,
+  "nome": "Monitor UltraWide 29\"",
+  "categoria": "Monitores",
+  "precoCentavos": 159990,
+  "estoque": 8
+ },
+ {
+  "id": 21,
+  "nome": "Fone Bluetooth TWS",
+  "categoria": "Fones de ouvido",
+  "precoCentavos": 19990,
+  "estoque": 70
+ },
+ {
+  "id": 22,
+  "nome": "Headphone Over-ear ANC",
+  "categoria": "Fones de ouvido",
+  "precoCentavos": 44990,
+  "estoque": 21
+ },
+ {
+  "id": 23,
+  "nome": "Fone Esportivo Bluetooth",
+  "categoria": "Fones de ouvido",
+  "precoCentavos": 12990,
+  "estoque": 45
+ },
+ {
+  "id": 24,
+  "nome": "Fone com Fio P2",
+  "categoria": "Fones de ouvido",
+  "precoCentavos": 3990,
+  "estoque": 90
+ },
+ {
+  "id": 25,
+  "nome": "Carregador Turbo 65W",
+  "categoria": "Acessórios",
+  "precoCentavos": 12990,
+  "estoque": 50
+ },
+ {
+  "id": 26,
+  "nome": "Power Bank 20000mAh",
+  "categoria": "Acessórios",
+  "precoCentavos": 15990,
+  "estoque": 38
+ },
+ {
+  "id": 27,
+  "nome": "Capa Protetora Universal",
+  "categoria": "Acessórios",
+  "precoCentavos": 4990,
+  "estoque": 100
+ },
+ {
+  "id": 28,
+  "nome": "Suporte para Notebook",
+  "categoria": "Acessórios",
+  "precoCentavos": 8990,
+  "estoque": 30
+ },
+ {
+  "id": 29,
+  "nome": "Smartwatch Fit 2",
+  "categoria": "Eletrônicos",
+  "precoCentavos": 32990,
+  "estoque": 32
+ },
+ {
+  "id": 30,
+  "nome": "Caixa de Som Bluetooth",
+  "categoria": "Eletrônicos",
+  "precoCentavos": 24990,
+  "estoque": 27
+ },
+ {
+  "id": 31,
+  "nome": "Smart TV 50\" 4K",
+  "categoria": "Eletrônicos",
+  "precoCentavos": 239990,
+  "estoque": 11
+ },
+ {
+  "id": 32,
+  "nome": "Tablet 10\" 64GB",
+  "categoria": "Eletrônicos",
+  "precoCentavos": 89990,
+  "estoque": 19
+ }
+]
