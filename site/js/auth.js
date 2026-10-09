@@ -187,8 +187,9 @@
       senha: String(senha || ""),
     });
     if (r.ok && r.dados.mfaNecessario === true) {
-      // Senha certa: falta o código do aplicativo autenticador.
-      return { ok: false, mfa: true };
+      // Senha certa: falta o código do aplicativo autenticador (operador ou situação de risco).
+      const motivos = ["operador", "dispositivo_novo", "tentativas_recentes"];
+      return { ok: false, mfa: true, motivo: motivos.indexOf(r.dados.motivo) !== -1 ? r.dados.motivo : "operador" };
     }
     if (r.ok) {
       const resumo = guardarResumo(r.dados);
@@ -209,8 +210,11 @@
   }
 
   /** Segunda etapa do login: código do aplicativo ou de recuperação. */
-  async function verificarCodigo(codigo) {
-    const r = await chamarApi("POST", "/api/auth/mfa", { codigo: String(codigo || "").trim().slice(0, 20) });
+  async function verificarCodigo(codigo, lembrar) {
+    const r = await chamarApi("POST", "/api/auth/mfa", {
+      codigo: String(codigo || "").trim().slice(0, 20),
+      lembrar: lembrar === true,
+    });
     if (r.ok) {
       const resumo = guardarResumo(r.dados);
       if (!resumo) return { ok: false, reiniciar: true, erro: MENSAGEM_LOGIN_INVALIDO };

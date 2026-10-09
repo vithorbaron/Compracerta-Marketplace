@@ -71,6 +71,23 @@ pre_sessoes = Table(
     Column("expira_em", DateTime(timezone=True), nullable=False, index=True),
 )
 
+# MFA adaptativo: navegador onde o cliente já confirmou o código (30 dias).
+dispositivos_confiaveis = Table(
+    "dispositivos_confiaveis", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("expira_em", DateTime(timezone=True), nullable=False, index=True),
+)
+
+# Sessões que confirmaram o código há pouco (compra fora do padrão exige).
+# Chave pelo hash do token da sessão: nunca é reaproveitada por outra sessão.
+sessoes_verificadas = Table(
+    "sessoes_verificadas", metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("verificado_em", DateTime(timezone=True), nullable=False, index=True),
+)
+
 produtos = Table(
     "produtos", metadata,
     Column("id", Integer, primary_key=True, autoincrement=False),

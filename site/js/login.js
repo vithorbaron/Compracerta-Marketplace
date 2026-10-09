@@ -34,9 +34,18 @@
     campoSenha.focus();
   }
 
-  function etapaCodigo() {
+  const TEXTO_MOTIVO = {
+    operador: "Conta de operador: digite o código de 6 dígitos do aplicativo autenticador.",
+    dispositivo_novo: "Novo dispositivo: confirme que é você com o código do aplicativo autenticador.",
+    tentativas_recentes: "Houve tentativas de senha erradas nesta conta. Confirme que é você com o código do aplicativo.",
+  };
+
+  function etapaCodigo(motivo) {
     form.hidden = true;
     formCodigo.hidden = false;
+    document.getElementById("motivoCodigo").textContent = TEXTO_MOTIVO[motivo] || TEXTO_MOTIVO.operador;
+    // Operador nunca tem dispositivo confiável: o código é pedido em todo acesso.
+    document.getElementById("campoLembrar").hidden = motivo === "operador";
     campoCodigo.value = "";
     campoCodigo.focus();
   }
@@ -70,7 +79,7 @@
       const resultado = await window.Auth.autenticar(identificador, senha);
       campoSenha.value = "";
       if (resultado.mfa && !resultado.ok) {
-        etapaCodigo();
+        etapaCodigo(resultado.motivo);
         return;
       }
       if (!resultado.ok) {
@@ -100,7 +109,8 @@
 
     botaoCodigo.disabled = true;
     try {
-      const resultado = await window.Auth.verificarCodigo(codigo);
+      const lembrar = !document.getElementById("campoLembrar").hidden && document.getElementById("lembrar").checked;
+      const resultado = await window.Auth.verificarCodigo(codigo, lembrar);
       campoCodigo.value = "";
       if (resultado.ok) {
         seguir(resultado);

@@ -192,3 +192,17 @@
   color: var(--bad);
   margin: 0;
 }
+
+/* Compra fora do padrão: confirmação com o código do aplicativo (MFA adaptativo) */
+.verificacao-compra {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--laranja);
+  border-radius: 10px;
+  background: var(--laranja-claro);
+}
+.verificacao-compra p { margin-bottom: 12px; font-size: 0.92rem; }
+.verificacao-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.verificacao-form label { flex-basis: 100%; font-size: 0.85rem; font-weight: 600; }
+.verificacao-form .input { flex: 1 1 160px; }

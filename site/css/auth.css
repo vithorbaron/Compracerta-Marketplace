@@ -179,3 +179,4 @@
 }
 .auth-card section .btn + .btn, #formCodigo .btn + .btn { margin-top: 10px; }
 #chaveManual { overflow-wrap: anywhere; }
+.lembrar-dispositivo { display: flex; align-items: center; gap: 8px; margin: -6px 0 18px; font-size: 0.88rem; color: var(--ink-soft); cursor: pointer; }

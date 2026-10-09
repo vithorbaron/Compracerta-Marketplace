@@ -144,9 +144,10 @@ def sessao_opcional(request: Request) -> dict | None:
         linha = conn.execute(
             select(db.sessoes.c.id, db.sessoes.c.criada_em, db.sessoes.c.ultima_atividade,
                    db.usuarios.c.id.label("usuario_id"), db.usuarios.c.usuario, db.usuarios.c.papel,
-                   db.mfa.c.ativo.label("mfa_ativo"))
+                   db.mfa.c.ativo.label("mfa_ativo"), db.sessoes_verificadas.c.verificado_em)
             .join(db.usuarios, db.usuarios.c.id == db.sessoes.c.usuario_id)
             .outerjoin(db.mfa, db.mfa.c.usuario_id == db.usuarios.c.id)
+            .outerjoin(db.sessoes_verificadas, db.sessoes_verificadas.c.token_hash == db.sessoes.c.token_hash)
             .where(db.sessoes.c.token_hash == hash_token(token))
         ).first()
         if not linha:
@@ -162,8 +163,11 @@ def sessao_opcional(request: Request) -> dict | None:
                          criada + timedelta(seconds=config.DURACAO_MAXIMA_S))
             conn.execute(update(db.sessoes).where(db.sessoes.c.id == linha.id)
                          .values(ultima_atividade=momento, expira_em=expira))
+    verificado = linha.verificado_em and (
+        momento - utc(linha.verificado_em)).total_seconds() <= config.VERIFICACAO_RECENTE_S
     return {"sessao_id": linha.id, "usuario_id": linha.usuario_id, "usuario": linha.usuario,
-            "papel": linha.papel, "mfa": bool(linha.mfa_ativo), "expira_em": expira}
+            "papel": linha.papel, "mfa": bool(linha.mfa_ativo), "mfa_recente": bool(verificado),
+            "token_hash": hash_token(token), "expira_em": expira}
 
 
 def exigir_login(sessao: Annotated[dict | None, Depends(sessao_opcional)]) -> dict:
@@ -190,6 +194,8 @@ def _resumo_sessao(sessao: dict) -> dict:
 
 def _criar_sessao(conn, usuario_id: int, momento: datetime) -> tuple[str, datetime]:
     conn.execute(delete(db.sessoes).where(db.sessoes.c.expira_em < momento))
+    conn.execute(delete(db.sessoes_verificadas).where(
+        db.sessoes_verificadas.c.verificado_em < momento - timedelta(seconds=config.DURACAO_MAXIMA_S)))
     token = novo_token()
     expira = momento + timedelta(seconds=config.INATIVIDADE_S)
     conn.execute(insert(db.sessoes).values(
@@ -208,6 +214,57 @@ def _definir_cookie_mfa(resposta: Response, token: str) -> None:
 def _apagar_cookie_mfa(resposta: Response) -> None:
     resposta.delete_cookie(config.NOME_COOKIE_MFA, path="/", secure=config.COOKIE_SEGURO,
                            httponly=True, samesite="strict")
+
+
+def _marcar_verificada(conn, token_hash_sessao: str, momento: datetime) -> None:
+    """Registra que esta sessão acabou de confirmar o código do aplicativo."""
+    conn.execute(delete(db.sessoes_verificadas).where(db.sessoes_verificadas.c.token_hash == token_hash_sessao))
+    conn.execute(insert(db.sessoes_verificadas).values(token_hash=token_hash_sessao, verificado_em=momento))
+
+
+def _dispositivo_confiavel(conn, request: Request, usuario_id: int, momento: datetime) -> bool:
+    token = request.cookies.get(config.NOME_COOKIE_DISPOSITIVO)
+    if not token or len(token) > 100:
+        return False
+    return conn.execute(select(db.dispositivos_confiaveis.c.id).where(
+        db.dispositivos_confiaveis.c.token_hash == hash_token(token),
+        db.dispositivos_confiaveis.c.usuario_id == usuario_id,
+        db.dispositivos_confiaveis.c.expira_em > momento)).first() is not None
+
+
+def _lembrar_dispositivo(conn, usuario_id: int, momento: datetime) -> str:
+    conn.execute(delete(db.dispositivos_confiaveis).where(db.dispositivos_confiaveis.c.expira_em < momento))
+    token = novo_token()
+    conn.execute(insert(db.dispositivos_confiaveis).values(
+        usuario_id=usuario_id, token_hash=hash_token(token),
+        expira_em=momento + timedelta(seconds=config.DISPOSITIVO_CONFIAVEL_S)))
+    return token
+
+
+def _esquecer_dispositivos(conn, usuario_id: int) -> None:
+    conn.execute(delete(db.dispositivos_confiaveis).where(db.dispositivos_confiaveis.c.usuario_id == usuario_id))
+
+
+def _definir_cookie_dispositivo(resposta: Response, token: str) -> None:
+    resposta.set_cookie(
+        config.NOME_COOKIE_DISPOSITIVO, token, max_age=config.DISPOSITIVO_CONFIAVEL_S, path="/",
+        secure=config.COOKIE_SEGURO, httponly=True, samesite="strict",
+    )
+
+
+def _apagar_cookie_dispositivo(resposta: Response) -> None:
+    resposta.delete_cookie(config.NOME_COOKIE_DISPOSITIVO, path="/", secure=config.COOKIE_SEGURO,
+                           httponly=True, samesite="strict")
+
+
+def _limite_de_compra(conn, usuario_id: int) -> int:
+    """Compra fora do padrão: acima do valor base ou de 3x a média dos últimos 10 pedidos.
+    Com menos de 3 pedidos ainda não há padrão: vale só o valor base."""
+    recentes = [t for (t,) in conn.execute(
+        select(db.pedidos.c.total_centavos).where(db.pedidos.c.usuario_id == usuario_id)
+        .order_by(db.pedidos.c.criado_em.desc()).limit(10))]
+    media = sum(recentes) // len(recentes) if len(recentes) >= 3 else 0
+    return max(config.LIMITE_COMPRA_BASE_CENTAVOS, 3 * media)
 
 
 # ---------------------------------------------------------------- modelos
@@ -237,6 +294,11 @@ class LoginIn(Modelo):
 class CodigoIn(Modelo):
     # 6 dígitos do aplicativo ou código de recuperação (xxxxx-xxxxx).
     codigo: Texto20
+
+
+class LoginMfaIn(CodigoIn):
+    # "Lembrar este dispositivo" (só para clientes).
+    lembrar: Annotated[bool, Field(strict=True)] = False
 
 
 class CompradorIn(Modelo):
@@ -364,21 +426,31 @@ def login(dados: LoginIn, request: Request):
             if estado_mfa.travado:
                 registrar_evento("mfa_conta_travada", usuario_id=usuario.id, ip=ip_do_cliente(request))
                 return erro(423, "conta_travada")
-            # Senha certa ainda não dá acesso: abre só a etapa do código (5 min).
-            conn.execute(delete(db.pre_sessoes).where(or_(
-                db.pre_sessoes.c.expira_em < momento, db.pre_sessoes.c.usuario_id == usuario.id)))
-            token_mfa = novo_token()
-            conn.execute(insert(db.pre_sessoes).values(
-                token_hash=hash_token(token_mfa), usuario_id=usuario.id, tentativas=0,
-                expira_em=momento + timedelta(seconds=config.PRE_SESSAO_S)))
-            registrar_evento("mfa_solicitado", usuario_id=usuario.id)
-            resposta = JSONResponse({"mfaNecessario": True})
-            _definir_cookie_mfa(resposta, token_mfa)
-            return resposta
+            # MFA adaptativo: operador sempre; cliente só em situação de risco.
+            if usuario.papel in db.PAPEIS_OPERADOR:
+                motivo = "operador"
+            elif falhas_atuais or nivel_atual:
+                motivo = "tentativas_recentes"  # senhas erradas antes deste acerto
+            elif not _dispositivo_confiavel(conn, request, usuario.id, momento):
+                motivo = "dispositivo_novo"
+            else:
+                motivo = None
+            if motivo:
+                # Senha certa ainda não dá acesso: abre só a etapa do código (5 min).
+                conn.execute(delete(db.pre_sessoes).where(or_(
+                    db.pre_sessoes.c.expira_em < momento, db.pre_sessoes.c.usuario_id == usuario.id)))
+                token_mfa = novo_token()
+                conn.execute(insert(db.pre_sessoes).values(
+                    token_hash=hash_token(token_mfa), usuario_id=usuario.id, tentativas=0,
+                    expira_em=momento + timedelta(seconds=config.PRE_SESSAO_S)))
+                registrar_evento("mfa_solicitado", usuario_id=usuario.id, motivo=motivo)
+                resposta = JSONResponse({"mfaNecessario": True, "motivo": motivo})
+                _definir_cookie_mfa(resposta, token_mfa)
+                return resposta
 
         token, expira = _criar_sessao(conn, usuario.id, momento)
 
-    resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel, "mfa": False,
+    resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel, "mfa": bool(estado_mfa),
                              "expiraEm": int(expira.timestamp() * 1000)})
     _definir_cookie(resposta, token)
     return resposta
@@ -421,12 +493,13 @@ def _registrar_falha_mfa(conn, usuario_id: int, estado, request: Request) -> boo
     if travou:
         conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.usuario_id == usuario_id))
         conn.execute(delete(db.sessoes).where(db.sessoes.c.usuario_id == usuario_id))
+        _esquecer_dispositivos(conn, usuario_id)
         registrar_evento("mfa_travado", usuario_id=usuario_id, ip=ip_do_cliente(request))
     return travou
 
 
 @app.post("/api/auth/mfa")
-def login_mfa(dados: CodigoIn, request: Request):
+def login_mfa(dados: LoginMfaIn, request: Request):
     exigir_taxa(request, "mfa", 10)
     token_mfa = request.cookies.get(config.NOME_COOKIE_MFA)
     if not token_mfa or len(token_mfa) > 100:
@@ -468,12 +541,57 @@ def login_mfa(dados: CodigoIn, request: Request):
         usuario = conn.execute(select(db.usuarios.c.usuario, db.usuarios.c.papel)
                                .where(db.usuarios.c.id == pre.usuario_id)).first()
         token, expira = _criar_sessao(conn, pre.usuario_id, momento)
+        _marcar_verificada(conn, hash_token(token), momento)
+        # Operador nunca tem dispositivo confiável: o código é pedido em todo login.
+        token_dispositivo = (_lembrar_dispositivo(conn, pre.usuario_id, momento)
+                             if dados.lembrar and usuario.papel not in db.PAPEIS_OPERADOR else None)
 
-    registrar_evento("mfa_ok", usuario_id=pre.usuario_id)
+    registrar_evento("mfa_ok", usuario_id=pre.usuario_id, lembrar=bool(token_dispositivo))
     resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel, "mfa": True,
                              "expiraEm": int(expira.timestamp() * 1000)})
     _apagar_cookie_mfa(resposta)
     _definir_cookie(resposta, token)
+    if token_dispositivo:
+        _definir_cookie_dispositivo(resposta, token_dispositivo)
+    return resposta
+
+
+@app.post("/api/mfa/verificar")
+def mfa_verificar(dados: CodigoIn, request: Request, sessao_atual: Annotated[dict, Depends(exigir_login)]):
+    """Confirmação pontual (ex.: compra fora do padrão): vale por 10 min nesta sessão."""
+    exigir_taxa(request, "mfa", 10)
+    usuario_id = sessao_atual["usuario_id"]
+    momento = agora()
+    with db.engine.begin() as conn:
+        estado = conn.execute(select(db.mfa).where(
+            db.mfa.c.usuario_id == usuario_id, db.mfa.c.ativo.is_(True)).with_for_update()).first()
+        if not estado:
+            return erro(409, "mfa_inativo")
+        if estado.travado:
+            return erro(423, "conta_travada")
+        try:
+            correto = _conferir_codigo(conn, usuario_id, estado, dados.codigo, momento)
+        except RuntimeError as exc:
+            registrar_evento("mfa_indisponivel", motivo=str(exc))
+            return erro(503, "mfa_indisponivel")
+        if not correto:
+            if _registrar_falha_mfa(conn, usuario_id, estado, request):
+                return erro(423, "conta_travada")
+            return erro(400, "codigo_invalido")
+        conn.execute(update(db.mfa).where(db.mfa.c.usuario_id == usuario_id).values(falhas=0))
+        _marcar_verificada(conn, sessao_atual["token_hash"], momento)
+    registrar_evento("mfa_verificacao_ok", usuario_id=usuario_id)
+    return {"ok": True}
+
+
+@app.post("/api/mfa/dispositivos/esquecer")
+def mfa_esquecer_dispositivos(request: Request, sessao_atual: Annotated[dict, Depends(exigir_login)]):
+    exigir_taxa(request, "mfa_config", 10)
+    with db.engine.begin() as conn:
+        _esquecer_dispositivos(conn, sessao_atual["usuario_id"])
+    registrar_evento("dispositivos_esquecidos", usuario_id=sessao_atual["usuario_id"])
+    resposta = JSONResponse({"ok": True})
+    _apagar_cookie_dispositivo(resposta)
     return resposta
 
 
@@ -527,9 +645,11 @@ def mfa_confirmar(dados: CodigoIn, request: Request, sessao_atual: Annotated[dic
         conn.execute(insert(db.mfa_recuperacao), [
             {"usuario_id": usuario_id, "codigo_hash": mfa.hash_recuperacao(mfa.normalizar_recuperacao(c))}
             for c in codigos])
-        # Outras sessões abertas antes da ativação são encerradas.
+        # Outras sessões e dispositivos de antes da ativação deixam de valer.
         conn.execute(delete(db.sessoes).where(db.sessoes.c.usuario_id == usuario_id,
                                               db.sessoes.c.id != sessao_atual["sessao_id"]))
+        _esquecer_dispositivos(conn, usuario_id)
+        _marcar_verificada(conn, sessao_atual["token_hash"], momento)
     registrar_evento("mfa_ativado", usuario_id=usuario_id)
     return {"codigosRecuperacao": codigos}
 
@@ -557,8 +677,11 @@ def mfa_desativar(dados: CodigoIn, request: Request, sessao_atual: Annotated[dic
             return erro(400, "codigo_invalido")
         conn.execute(delete(db.mfa_recuperacao).where(db.mfa_recuperacao.c.usuario_id == usuario_id))
         conn.execute(delete(db.mfa).where(db.mfa.c.usuario_id == usuario_id))
+        _esquecer_dispositivos(conn, usuario_id)
     registrar_evento("mfa_desativado", usuario_id=usuario_id)
-    return {"ok": True}
+    resposta = JSONResponse({"ok": True})
+    _apagar_cookie_dispositivo(resposta)
+    return resposta
 
 
 @app.post("/api/auth/logout", status_code=204)
@@ -634,6 +757,11 @@ def transacao(dados: TransacaoIn, request: Request,
             if total != dados.totalEsperadoCentavos:
                 registrar_evento("valor_divergente", usuario_id=usuario_id)
                 return erro(422, "valor_divergente", totalCentavos=total)
+
+            # MFA adaptativo: compra fora do padrão do cliente pede o código do aplicativo.
+            if total > _limite_de_compra(conn, usuario_id) and not sessao_atual["mfa_recente"]:
+                registrar_evento("verificacao_exigida", motivo="compra_fora_do_padrao", usuario_id=usuario_id)
+                return erro(428, "verificacao_necessaria", mfaAtivo=sessao_atual["mfa"])
 
             for item in sorted(dados.itens, key=lambda i: i.id):
                 baixa = conn.execute(

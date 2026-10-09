@@ -48,12 +48,16 @@
     </form>
 
     <form id="formCodigo" novalidate hidden>
-      <p class="auth-sub">Abra o aplicativo autenticador e digite o código de 6 dígitos da conta CompraCerta.</p>
+      <p class="auth-sub" id="motivoCodigo">Abra o aplicativo autenticador e digite o código de 6 dígitos da conta CompraCerta.</p>
       <div class="field">
         <label for="codigo">Código de verificação</label>
         <input class="input" type="text" id="codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" required maxlength="11" placeholder="123456">
       </div>
       <p class="field-hint">Perdeu o celular? Digite um dos seus códigos de recuperação (ex.: abcde-fghjk).</p>
+      <label class="lembrar-dispositivo" id="campoLembrar">
+        <input type="checkbox" id="lembrar" checked>
+        <span>Lembrar este dispositivo por 30 dias</span>
+      </label>
       <button type="submit" class="btn btn-primary btn-block btn-lg">Verificar</button>
       <button type="button" class="btn btn-secondary btn-block" id="voltarSenha">Voltar</button>
     </form>

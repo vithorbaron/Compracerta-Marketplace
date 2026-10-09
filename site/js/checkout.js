@@ -327,9 +327,54 @@ async function aoClicarRealizarTransferencia() {
     }
     pedido = null;
   } catch (erro) {
+    if (erro instanceof ErroApi && erro.codigo === "verificacao") {
+      fecharModal();
+      mostrarVerificacaoCompra(erro.mfaAtivo === true);
+      return;
+    }
     exibirErro(erro instanceof ErroApi ? erro.mensagemUsuario : "Não foi possível processar sua compra. Tente novamente.");
   } finally {
     envioEmAndamento = false;
+    botao.disabled = false;
+  }
+}
+
+// ---------- Compra fora do padrão: confirmação com o código (MFA adaptativo) ----------
+
+function mostrarVerificacaoCompra(mfaAtivo) {
+  document.getElementById("verificacao-compra").hidden = false;
+  document.getElementById("verificacao-form").hidden = !mfaAtivo;
+  document.getElementById("verificacao-ativar").hidden = mfaAtivo;
+  document.getElementById("verificacao-texto").textContent = mfaAtivo
+    ? "Esta compra está fora do seu padrão. Para concluir, digite o código do aplicativo autenticador."
+    : "Esta compra está fora do seu padrão. Para concluir, ative a verificação em duas etapas da sua conta.";
+  if (mfaAtivo) document.getElementById("codigo-compra").focus();
+}
+
+async function aoConfirmarCodigoCompra() {
+  const campo = document.getElementById("codigo-compra");
+  const botao = document.getElementById("btn-confirmar-codigo");
+  const codigo = campo.value.trim();
+  if (!/^(\d{6}|[a-z0-9]{5}-?[a-z0-9]{5})$/i.test(codigo)) {
+    document.getElementById("verificacao-texto").textContent = "Digite os 6 números do aplicativo ou um código de recuperação.";
+    return;
+  }
+  botao.disabled = true;
+  try {
+    const r = await chamarApi("POST", "/api/mfa/verificar", { codigo: codigo });
+    campo.value = "";
+    if (!r.ok) {
+      document.getElementById("verificacao-texto").textContent = r.status === 423
+        ? "Conta bloqueada por segurança. Procure o administrador."
+        : "Código incorreto. Confira o aplicativo e tente de novo.";
+      return;
+    }
+    document.getElementById("verificacao-compra").hidden = true;
+    await aoClicarRealizarTransferencia(); // mesma chave de idempotência: não duplica o pedido
+  } catch (erro) {
+    document.getElementById("verificacao-texto").textContent = erro instanceof ErroApi
+      ? erro.mensagemUsuario : "Não foi possível confirmar agora. Tente novamente.";
+  } finally {
     botao.disabled = false;
   }
 }
@@ -377,6 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("btn-fechar-erro").addEventListener("click", fecharModal);
+  document.getElementById("btn-confirmar-codigo").addEventListener("click", aoConfirmarCodigoCompra);
 
   // Ao sair da página, os dados pessoais digitados não ficam no formulário.
   window.addEventListener("pagehide", limparDadosComprador);

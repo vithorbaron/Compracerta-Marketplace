@@ -140,6 +140,7 @@ def zerar_mfa(args) -> int:
         conn.execute(delete(db.mfa).where(db.mfa.c.usuario_id == usuario_id))
         conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.usuario_id == usuario_id))
         conn.execute(delete(db.sessoes).where(db.sessoes.c.usuario_id == usuario_id))
+        conn.execute(delete(db.dispositivos_confiaveis).where(db.dispositivos_confiaveis.c.usuario_id == usuario_id))
     print(f"MFA de '{args.usuario}' removido e sessões encerradas. Ative de novo com ativar-mfa.")
     return 0
 

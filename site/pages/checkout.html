@@ -141,6 +141,16 @@
         </div>
         <p id="erro-pagamento" class="field-error" role="alert" hidden></p>
 
+        <div id="verificacao-compra" class="verificacao-compra" role="alert" hidden>
+          <p id="verificacao-texto"></p>
+          <div id="verificacao-form" class="verificacao-form" hidden>
+            <label for="codigo-compra">Código do aplicativo autenticador</label>
+            <input class="input" type="text" id="codigo-compra" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="123456">
+            <button type="button" id="btn-confirmar-codigo" class="btn btn-primary">Confirmar e finalizar</button>
+          </div>
+          <a id="verificacao-ativar" class="btn btn-secondary" href="conta.html" hidden>Ativar verificação em duas etapas</a>
+        </div>
+
         <div class="checkout-actions">
           <button type="button" id="btn-voltar-3" class="btn btn-secondary btn-lg">Voltar</button>
           <button type="button" id="btn-realizar-transferencia" class="btn btn-primary btn-lg">Realizar transferência</button>

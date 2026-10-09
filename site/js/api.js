@@ -105,6 +105,12 @@
   async function realizarTransferencia(pedido) {
     const r = await chamarApi("POST", "/api/transacao", pedido);
     if (r.ok) return r.dados;
+    if (r.status === 428) {
+      // Compra fora do padrão do cliente: falta confirmar com o código do aplicativo.
+      const erro = new ErroApi("Esta compra está fora do seu padrão. Confirme com o código do aplicativo autenticador.", "verificacao", 428);
+      erro.mfaAtivo = r.dados.mfaAtivo === true;
+      throw erro;
+    }
     if (r.status === 409) {
       falhar(r.dados.erro === "estoque_insuficiente"
         ? "Algum item do carrinho ficou sem estoque. Revise o carrinho e tente novamente."

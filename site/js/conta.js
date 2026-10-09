@@ -40,8 +40,11 @@
     papelAtual = r.dados.papel;
     const operador = window.Auth.PAPEIS_OPERADOR.indexOf(papelAtual) !== -1;
     $("avisoOperador").hidden = !operador;
+    $("avisoCliente").hidden = operador;
     if (r.dados.mfa === true) {
-      $("mfaStatus").textContent = "Ativada. Ao entrar, o site pede o código do seu aplicativo autenticador.";
+      $("mfaStatus").textContent = operador
+        ? "Ativada. O código do aplicativo é pedido em todo acesso."
+        : "Ativada. O código do aplicativo é pedido só em situação de risco.";
       exibir(operador ? null : "secDesativar");
     } else {
       $("mfaStatus").textContent = "Desativada.";
@@ -114,6 +117,16 @@
     $("btnAtivar").addEventListener("click", iniciar);
     $("formConfirmar").addEventListener("submit", confirmar);
     $("formDesativar").addEventListener("submit", desativar);
+    $("btnEsquecer").addEventListener("click", async function () {
+      esconderAvisos();
+      try {
+        const r = await chamarApi("POST", "/api/mfa/dispositivos/esquecer");
+        if (r.ok) mostrar(avisoSucesso, "Dispositivos esquecidos. O próximo acesso pedirá o código do aplicativo.");
+        else mostrar(avisoErro, erroDaApi(r, "Não foi possível esquecer os dispositivos."));
+      } catch (erro) {
+        mostrar(avisoErro, erro instanceof ErroApi ? erro.mensagemUsuario : "Não foi possível esquecer os dispositivos.");
+      }
+    });
     $("btnCopiar").addEventListener("click", async function () {
       try {
         await navigator.clipboard.writeText(codigosAtuais.join("\n"));
