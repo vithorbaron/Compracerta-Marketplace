@@ -49,6 +49,7 @@ var papel = {
   contribuidorSite: 'de139f84-1756-47ae-9be6-808fbbe84772'
   usuarioSegredosCofre: '4633458b-17de-408a-b874-0445c86b69e6'
   contribuidorBlobs: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+  leitorBlobs: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 }
 
 // ---------------------------------------------------------------- monitoramento
@@ -134,8 +135,8 @@ resource armazenamento 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     accessTier: 'Hot'
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
-    allowBlobPublicAccess: true // apenas o container "produtos" é público (leitura das imagens)
-    allowSharedKeyAccess: false // envio só com Entra ID, sem chave de conta
+    allowBlobPublicAccess: false // nada é público: as fotos são entregues pela aplicação
+    allowSharedKeyAccess: false // acesso só com Entra ID: sem chave de conta e sem SAS assinado por ela
     defaultToOAuthAuthentication: true
     publicNetworkAccess: 'Enabled'
   }
@@ -152,7 +153,7 @@ resource servicoBlob 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
 resource containerProdutos 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: servicoBlob
   name: 'produtos'
-  properties: { publicAccess: 'Blob' }
+  properties: { publicAccess: 'None' }
 }
 
 // ---------------------------------------------------------------- aplicação (App Service)
@@ -211,6 +212,17 @@ resource siteLeSegredos 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// O site só lê as fotos, e só no container de imagens.
+resource siteLeImagens 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: containerProdutos
+  name: guid(containerProdutos.id, site.id, papel.leitorBlobs)
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', papel.leitorBlobs)
+    principalId: site.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource configuracoesSite 'Microsoft.Web/sites/config@2023-12-01' = {
   parent: site
   name: 'appsettings'
@@ -221,13 +233,13 @@ resource configuracoesSite 'Microsoft.Web/sites/config@2023-12-01' = {
     PGUSER: usuarioBanco
     PGSSLMODE: 'require'
     PGPASSWORD: '@Microsoft.KeyVault(SecretUri=${segredoBanco.properties.secretUriWithVersion})'
-    IMAGENS_URL: '${armazenamento.properties.primaryEndpoints.blob}produtos'
+    IMAGENS_BLOB_URL: '${armazenamento.properties.primaryEndpoints.blob}${containerProdutos.name}'
     ORIGENS_PERMITIDAS: 'https://${site.properties.defaultHostName}'
     TRUST_PROXY: '1'
     COOKIE_SEGURO: '1'
     PAPEIS_OPERADORES: ''
   }
-  dependsOn: [siteLeSegredos, bancoDados, firewallBanco]
+  dependsOn: [siteLeSegredos, siteLeImagens, bancoDados, firewallBanco]
 }
 
 // ---------------------------------------------------------------- logs para o Log Analytics
@@ -270,6 +282,7 @@ resource diagBlob 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   properties: {
     workspaceId: logs.id
     logs: [
+      { category: 'StorageRead', enabled: true }
       { category: 'StorageWrite', enabled: true }
       { category: 'StorageDelete', enabled: true }
     ]
@@ -305,9 +318,10 @@ resource githubPublicaSite 'Microsoft.Authorization/roleAssignments@2022-04-01' 
   }
 }
 
+// Só no container de imagens, não na conta de storage inteira.
 resource githubEnviaImagens 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(repositorioGithub)) {
-  scope: armazenamento
-  name: guid(armazenamento.id, 'github', papel.contribuidorBlobs)
+  scope: containerProdutos
+  name: guid(containerProdutos.id, 'github', papel.contribuidorBlobs)
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', papel.contribuidorBlobs)
     principalId: identidadeGithub!.properties.principalId
@@ -383,7 +397,7 @@ output nomeSite string = site.name
 output nomePlano string = plano.name
 output enderecoSite string = 'https://${site.properties.defaultHostName}'
 output nomeArmazenamento string = armazenamento.name
-output enderecoImagens string = '${armazenamento.properties.primaryEndpoints.blob}produtos'
+output enderecoImagens string = 'https://${site.properties.defaultHostName}/imagens'
 output servidorBanco string = postgres.properties.fullyQualifiedDomainName
 output nomeCofre string = cofre.name
 output nomeLogAnalytics string = logs.name

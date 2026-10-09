@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "395280244037443431"
+      "templateHash": "17797186631118492662"
     }
   },
   "parameters": {
@@ -95,7 +95,8 @@
       "leitorLogAnalytics": "73c42c96-874c-492b-b04d-ab87d138a893",
       "contribuidorSite": "de139f84-1756-47ae-9be6-808fbbe84772",
       "usuarioSegredosCofre": "4633458b-17de-408a-b874-0445c86b69e6",
-      "contribuidorBlobs": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+      "contribuidorBlobs": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+      "leitorBlobs": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
     },
     "papeisNoGrupo": {
       "ceo": [
@@ -244,7 +245,7 @@
         "accessTier": "Hot",
         "minimumTlsVersion": "TLS1_2",
         "supportsHttpsTrafficOnly": true,
-        "allowBlobPublicAccess": true,
+        "allowBlobPublicAccess": false,
         "allowSharedKeyAccess": false,
         "defaultToOAuthAuthentication": true,
         "publicNetworkAccess": "Enabled"
@@ -269,7 +270,7 @@
       "apiVersion": "2023-05-01",
       "name": "[format('{0}/{1}/{2}', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
       "properties": {
-        "publicAccess": "Blob"
+        "publicAccess": "None"
       },
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default')]"
@@ -355,6 +356,21 @@
       ]
     },
     {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), variables('papel').leitorBlobs)]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('papel').leitorBlobs)]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), '2023-12-01', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
+        "[resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo')))]"
+      ]
+    },
+    {
       "type": "Microsoft.Web/sites/config",
       "apiVersion": "2023-12-01",
       "name": "[format('{0}/{1}', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo')), 'appsettings')]",
@@ -365,7 +381,7 @@
         "PGUSER": "[variables('usuarioBanco')]",
         "PGSSLMODE": "require",
         "PGPASSWORD": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'senha-banco'), '2023-07-01').secretUriWithVersion)]",
-        "IMAGENS_URL": "[format('{0}produtos', reference(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11))), '2023-05-01').primaryEndpoints.blob)]",
+        "IMAGENS_BLOB_URL": "[format('{0}{1}', reference(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11))), '2023-05-01').primaryEndpoints.blob, 'produtos')]",
         "ORIGENS_PERMITIDAS": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), '2023-12-01').defaultHostName)]",
         "TRUST_PROXY": "1",
         "COOKIE_SEGURO": "1",
@@ -374,10 +390,12 @@
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)))]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/databases', format('psql-{0}-{1}', parameters('prefixo'), variables('sufixo')), variables('nomeBanco'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/firewallRules', format('psql-{0}-{1}', parameters('prefixo'), variables('sufixo')), 'PermitirServicosAzure')]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}', parameters('prefixo'), variables('sufixo')))]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'senha-banco')]",
         "[resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo')))]",
+        "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), variables('papel').leitorBlobs))]",
         "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13))), resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), variables('papel').usuarioSegredosCofre))]"
       ]
     },
@@ -459,6 +477,10 @@
         "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('log-{0}-{1}', parameters('prefixo'), variables('sufixo')))]",
         "logs": [
           {
+            "category": "StorageRead",
+            "enabled": true
+          },
+          {
             "category": "StorageWrite",
             "enabled": true
           },
@@ -516,15 +538,15 @@
       "condition": "[not(empty(parameters('repositorioGithub')))]",
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
-      "scope": "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)))]",
-      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11))), 'github', variables('papel').contribuidorBlobs)]",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
+      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), 'github', variables('papel').contribuidorBlobs)]",
       "properties": {
         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('papel').contribuidorBlobs)]",
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-github-{0}-{1}', parameters('prefixo'), variables('sufixo'))), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos')]",
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('id-github-{0}-{1}', parameters('prefixo'), variables('sufixo')))]"
       ]
     },
@@ -640,7 +662,7 @@
     },
     "enderecoImagens": {
       "type": "string",
-      "value": "[format('{0}produtos', reference(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11))), '2023-05-01').primaryEndpoints.blob)]"
+      "value": "[format('https://{0}/imagens', reference(resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), '2023-12-01').defaultHostName)]"
     },
     "servidorBanco": {
       "type": "string",

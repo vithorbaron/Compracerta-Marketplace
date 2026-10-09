@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
-from . import config, db, validacao
+from . import config, db, imagens, validacao
 from .seguranca import (
     CABECALHOS_FIXOS, LimiteDeCorpo, gerar_hash_senha, hash_token, ip_do_cliente, limitador,
     novo_token, origem_permitida, politica_de_conteudo, precisa_rehash, registrar_evento,
@@ -113,7 +113,7 @@ async def erro_http(_request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def erro_inesperado(_request: Request, exc: Exception):
-    registrar_evento("erro_interno", tipo=type(exc).__name__)
+    registrar_evento("erro_interno", classe=type(exc).__name__)
     return erro(500, "falha_interna")
 
 
@@ -232,9 +232,23 @@ def saude():
 
 @app.get("/js/config.js")
 def config_js():
-    dados = json.dumps({"apiUrl": "", "imagensUrl": config.IMAGENS_URL})
+    dados = json.dumps({"apiUrl": "", "imagensUrl": "/imagens" if config.IMAGENS_BLOB_URL else ""})
     return Response(f"window.CONFIG_COMPRACERTA = Object.freeze({dados});\n",
                     media_type="application/javascript")
+
+
+@app.get("/imagens/{nome}")
+def imagem_do_produto(nome: str, request: Request):
+    exigir_taxa(request, "imagens", 300)
+    try:
+        dados = imagens.obter(nome)
+    except Exception as exc:
+        # Detalhes do storage ficam só no log interno; o cliente recebe 404.
+        registrar_evento("imagem_indisponivel", classe=type(exc).__name__)
+        dados = None
+    if dados is None:
+        return Response(status_code=404)
+    return Response(dados, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
 # ---------------------------------------------------------------- rotas: autenticação

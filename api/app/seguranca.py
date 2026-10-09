@@ -112,10 +112,7 @@ def origem_permitida(request) -> bool:
 
 def politica_de_conteudo() -> str:
     imagens = "'self' data:"
-    if config.IMAGENS_URL:
-        partes = config.IMAGENS_URL.split("/")
-        imagens += " " + "/".join(partes[:3])
-    else:
+    if not config.IMAGENS_BLOB_URL:
         # Fora do Azure (sem Blob configurado): fotos originais do catálogo.
         imagens += " https://images.unsplash.com"
     return (

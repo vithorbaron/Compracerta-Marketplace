@@ -1,8 +1,8 @@
 /**
  * Catálogo fictício de produtos.
- * "imagem": no Azure, o container de imagens do Blob Storage (endereço vindo
- * de js/config.js), arquivo produto-<id>.jpg. Fora do Azure (sem esse
- * endereço), a foto original de banco de imagens livre (Unsplash).
+ * "imagem": no Azure, /imagens/produto-<id>.jpg do próprio site, que lê a foto
+ * de um container privado (js/config.js indica se está ativo). Fora do Azure,
+ * a foto original de banco de imagens livre (Unsplash).
  * "imagemFallback" é um SVG gerado localmente (data URI): se a foto não
  * carregar, o listener de "error" de imagemSegura() (js/dom.js) troca para ele.
  */
@@ -10,7 +10,7 @@
 function imagemDoProduto(id, origem) {
   const config = window.CONFIG_COMPRACERTA;
   const base = config && typeof config.imagensUrl === "string" ? config.imagensUrl : "";
-  if (base.startsWith("https://")) return base + "/produto-" + id + ".jpg";
+  if (base === "/imagens" && Number.isInteger(id) && id > 0) return "/imagens/produto-" + id + ".jpg";
   return typeof origem === "string" && origem.startsWith("https://images.unsplash.com/") ? origem : "";
 }
 

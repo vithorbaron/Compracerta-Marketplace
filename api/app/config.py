@@ -51,8 +51,9 @@ ORIGENS_PERMITIDAS = {
 CONFIAR_PROXY = _bool("TRUST_PROXY", False)
 COOKIE_SEGURO = _bool("COOKIE_SEGURO", True)
 NOME_COOKIE = "__Host-cc_sessao" if COOKIE_SEGURO else "cc_sessao"
-# Endereço público do container de imagens dos produtos (Blob Storage).
-IMAGENS_URL = os.environ.get("IMAGENS_URL", "").rstrip("/")
+# Endereço do container privado de imagens (Blob Storage). Só a aplicação o usa:
+# o navegador recebe as fotos pela rota /imagens/ do próprio site.
+IMAGENS_BLOB_URL = os.environ.get("IMAGENS_BLOB_URL", "").rstrip("/")
 
 INATIVIDADE_S = 30 * 60
 DURACAO_MAXIMA_S = 8 * 60 * 60

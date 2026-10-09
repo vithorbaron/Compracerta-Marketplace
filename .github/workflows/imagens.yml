@@ -25,6 +25,18 @@ jobs:
           done
           ls imagens | wc -l
 
+      - name: Remover metadados das imagens (EXIF, GPS, autor, aparelho)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libimage-exiftool-perl
+          for f in imagens/*.jpg; do
+            [ "$(head -c 3 "$f" | od -An -tx1 | tr -d ' ')" = "ffd8ff" ] || { echo "Não é JPEG: $f"; exit 1; }
+          done
+          exiftool -q -all= -overwrite_original imagens/*.jpg
+          # Confere: nenhuma imagem pode sair com metadados.
+          exiftool -j -q -EXIF:all -XMP:all -IPTC:all -GPS:all -Photoshop:all imagens/*.jpg \
+            | jq -e 'all(.[]; keys == ["SourceFile"])' > /dev/null \
+            || { echo "Ainda há metadados nas imagens"; exit 1; }
+
       - name: Entrar no Azure (OIDC)
         uses: azure/login@v2
         with:
