@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Actions fixadas por hash: o Dependabot propõe o hash novo quando sai versão.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Bibliotecas Python da API.
+  - package-ecosystem: pip
+    directory: /api
+    schedule:
+      interval: weekly
+    # Espera 7 dias após cada versão nova: reduz o risco de pacote recém-publicado comprometido.
+    cooldown:
+      default-days: 7

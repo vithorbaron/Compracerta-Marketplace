@@ -55,7 +55,8 @@ def tem_metadados(dados: bytes) -> bool:
 def baixar(url: str) -> bytes:
     if not url.startswith(PREFIXO_PERMITIDO):
         raise ValueError("origem não permitida")
-    with urllib.request.urlopen(url, timeout=60) as resposta:
+    # O prefixo conferido acima garante https://images.unsplash.com/ (nada de file://).
+    with urllib.request.urlopen(url, timeout=60) as resposta:  # nosec B310
         dados = resposta.read(TAMANHO_MAXIMO + 1)
     if len(dados) > TAMANHO_MAXIMO:
         raise ValueError("arquivo grande demais")

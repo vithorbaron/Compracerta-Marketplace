@@ -32,6 +32,21 @@ _token: tuple[str, float] | None = None
 _cache: dict[str, tuple[bytes | None, float]] = {}
 
 
+class _SemRedirecionamento(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *_args, **_kwargs):
+        return None  # não segue redirecionamento: o token nunca vai para outro endereço
+
+
+_abridor = urllib.request.build_opener(_SemRedirecionamento)
+
+
+def _abrir(requisicao: urllib.request.Request, timeout: int, esquemas: tuple[str, ...]):
+    # Só os esquemas esperados (nunca file:// ou outros), conferidos antes de abrir.
+    if urllib.parse.urlsplit(requisicao.full_url).scheme not in esquemas:
+        raise RuntimeError("esquema_nao_permitido")
+    return _abridor.open(requisicao, timeout=timeout)
+
+
 def _token_identidade() -> str:
     """Token do Entra ID para o Storage, emitido pela identidade gerenciada do App Service."""
     global _token
@@ -45,7 +60,8 @@ def _token_identidade() -> str:
             raise RuntimeError("identidade_indisponivel")
         url = endpoint + "?" + urllib.parse.urlencode({"resource": RECURSO_STORAGE, "api-version": "2019-08-01"})
         requisicao = urllib.request.Request(url, headers={"X-IDENTITY-HEADER": segredo})
-        with urllib.request.urlopen(requisicao, timeout=5) as resposta:
+        # O endpoint de identidade do App Service é local (http).
+        with _abrir(requisicao, 5, ("http", "https")) as resposta:
             dados = json.load(resposta)
         _token = (dados["access_token"], float(dados["expires_on"]))
         return _token[0]
@@ -56,8 +72,10 @@ def _baixar(nome: str) -> bytes | None:
         "Authorization": f"Bearer {_token_identidade()}",
         "x-ms-version": VERSAO_API_BLOB,
     })
+    # Em produção o token só trafega por HTTPS; http só fora do Azure, em teste local.
+    esquemas = ("https",) if config.COOKIE_SEGURO else ("https", "http")
     try:
-        with urllib.request.urlopen(requisicao, timeout=10) as resposta:
+        with _abrir(requisicao, 10, esquemas) as resposta:
             dados = resposta.read(TAMANHO_MAXIMO + 1)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:

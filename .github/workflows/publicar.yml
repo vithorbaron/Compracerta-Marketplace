@@ -3,23 +3,35 @@ name: Publicar aplicação
 on:
   push:
     branches: [main]
-    paths: ["site/**", "api/**", ".github/workflows/publicar.yml"]
+    paths: ["site/**", "api/**", ".github/workflows/publicar.yml", ".github/workflows/verificar.yml"]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 concurrency:
   group: publicar
   cancel-in-progress: false
 
 jobs:
+  # Só publica se a verificação de segurança passar.
+  verificar:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/verificar.yml
+
   publicar:
+    needs: verificar
+    # Sem as variáveis do Azure configuradas, a publicação é pulada em vez de falhar.
+    if: vars.AZURE_SITE != ''
     runs-on: ubuntu-latest
     environment: producao
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Montar pacote (API + site)
         run: |
@@ -30,15 +42,16 @@ jobs:
           cd pacote && zip -qr ../pacote.zip .
 
       - name: Entrar no Azure (OIDC, sem segredo guardado)
-        uses: azure/login@v2
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2.3.1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Publicar no App Service
+        env:
+          GRUPO: ${{ vars.AZURE_GRUPO }}
+          SITE: ${{ vars.AZURE_SITE }}
         run: |
-          az webapp deploy \
-            --resource-group "${{ vars.AZURE_GRUPO }}" \
-            --name "${{ vars.AZURE_SITE }}" \
+          az webapp deploy --resource-group "$GRUPO" --name "$SITE" \
             --src-path pacote.zip --type zip --async false

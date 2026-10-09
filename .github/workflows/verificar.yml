@@ -1,0 +1,57 @@
+name: Verificar segurança
+
+# Roda em todo pull request e antes de cada publicação (chamado por publicar.yml).
+# Sem segredos e sem acesso ao Azure: só lê o código.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências e ferramentas
+        run: pip install -r api/requirements.txt bandit==1.8.6 pip-audit==2.9.0
+
+      - name: SAST (análise do código)
+        run: bandit -q -r api/app infra/imagens -ll
+
+      - name: SCA (bibliotecas com falhas conhecidas)
+        run: pip-audit -r api/requirements.txt --progress-spinner off
+
+      - name: Teste de fumaça (proteções básicas no ar)
+        working-directory: api
+        env:
+          COOKIE_SEGURO: "0"
+          DATABASE_URL: sqlite:///./verificacao.db
+        run: |
+          # Mesmo comando de produção (main.bicep), na porta local.
+          python -m uvicorn app.main:app --port 8000 --no-server-header &
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/saude > /dev/null && break; sleep 1; done
+          codigo() { curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$1"; }
+          espera() {
+            obtido=$(codigo "$1")
+            [ "$obtido" = "$2" ] || { echo "$1 respondeu $obtido; esperado $2"; exit 1; }
+          }
+          curl -sf http://127.0.0.1:8000/api/saude | grep -q '"ok"'
+          cabecalhos=$(curl -sI http://127.0.0.1:8000/)
+          echo "$cabecalhos" | grep -qi "^content-security-policy: default-src 'none'"
+          echo "$cabecalhos" | grep -qi "^x-content-type-options: nosniff"
+          echo "$cabecalhos" | grep -qi "^x-frame-options: deny"
+          if echo "$cabecalhos" | grep -qi "^server:"; then echo "Cabeçalho Server exposto"; exit 1; fi
+          espera /docs 404
+          espera /openapi.json 404
+          espera /api/painel 401
+          espera /api/pedidos 401
+          echo "Teste de fumaça ok"
