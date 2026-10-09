@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
-from . import config, db, imagens, validacao
+from . import config, db, imagens, mfa, validacao
 from .seguranca import (
     CABECALHOS_FIXOS, LimiteDeCorpo, gerar_hash_senha, hash_token, ip_do_cliente, limitador,
     novo_token, origem_permitida, politica_de_conteudo, precisa_rehash, registrar_evento,
@@ -30,6 +30,10 @@ FRETE_PADRAO_CENTAVOS = 1990
 FRETE_GRATIS_A_PARTIR_CENTAVOS = 30000
 PAPEIS_PAINEL = ("financeiro", "ceo")
 MENSAGEM_CADASTRO = "Não foi possível criar a conta com esses dados."
+# Verificação em duas etapas: erros por etapa (depois, senha de novo) e erros
+# acumulados na conta até travar (só o administrador libera).
+MFA_TENTATIVAS_POR_ETAPA = 5
+MFA_FALHAS_ATE_TRAVAR = 10
 
 # Falhas de login para identificadores que não existem, guardadas em memória
 # com as mesmas regras das contas reais: a resposta não revela se a conta existe.
@@ -139,8 +143,10 @@ def sessao_opcional(request: Request) -> dict | None:
     with db.engine.begin() as conn:
         linha = conn.execute(
             select(db.sessoes.c.id, db.sessoes.c.criada_em, db.sessoes.c.ultima_atividade,
-                   db.usuarios.c.id.label("usuario_id"), db.usuarios.c.usuario, db.usuarios.c.papel)
+                   db.usuarios.c.id.label("usuario_id"), db.usuarios.c.usuario, db.usuarios.c.papel,
+                   db.mfa.c.ativo.label("mfa_ativo"))
             .join(db.usuarios, db.usuarios.c.id == db.sessoes.c.usuario_id)
+            .outerjoin(db.mfa, db.mfa.c.usuario_id == db.usuarios.c.id)
             .where(db.sessoes.c.token_hash == hash_token(token))
         ).first()
         if not linha:
@@ -157,7 +163,7 @@ def sessao_opcional(request: Request) -> dict | None:
             conn.execute(update(db.sessoes).where(db.sessoes.c.id == linha.id)
                          .values(ultima_atividade=momento, expira_em=expira))
     return {"sessao_id": linha.id, "usuario_id": linha.usuario_id, "usuario": linha.usuario,
-            "papel": linha.papel, "expira_em": expira}
+            "papel": linha.papel, "mfa": bool(linha.mfa_ativo), "expira_em": expira}
 
 
 def exigir_login(sessao: Annotated[dict | None, Depends(sessao_opcional)]) -> dict:
@@ -170,12 +176,38 @@ def exigir_painel(sessao: Annotated[dict, Depends(exigir_login)]) -> dict:
     if sessao["papel"] not in PAPEIS_PAINEL:
         registrar_evento("acesso_negado", rota="painel", usuario_id=sessao["usuario_id"])
         raise HTTPException(403, "sem_permissao")
+    if not sessao["mfa"]:
+        # Operador só acessa área interna com a verificação em duas etapas ativa.
+        registrar_evento("acesso_negado", rota="painel", motivo="mfa", usuario_id=sessao["usuario_id"])
+        raise HTTPException(403, "mfa_obrigatorio")
     return sessao
 
 
 def _resumo_sessao(sessao: dict) -> dict:
-    return {"usuario": sessao["usuario"], "papel": sessao["papel"],
+    return {"usuario": sessao["usuario"], "papel": sessao["papel"], "mfa": sessao["mfa"],
             "expiraEm": int(sessao["expira_em"].timestamp() * 1000)}
+
+
+def _criar_sessao(conn, usuario_id: int, momento: datetime) -> tuple[str, datetime]:
+    conn.execute(delete(db.sessoes).where(db.sessoes.c.expira_em < momento))
+    token = novo_token()
+    expira = momento + timedelta(seconds=config.INATIVIDADE_S)
+    conn.execute(insert(db.sessoes).values(
+        token_hash=hash_token(token), usuario_id=usuario_id, criada_em=momento,
+        ultima_atividade=momento, expira_em=expira))
+    return token, expira
+
+
+def _definir_cookie_mfa(resposta: Response, token: str) -> None:
+    resposta.set_cookie(
+        config.NOME_COOKIE_MFA, token, max_age=config.PRE_SESSAO_S, path="/",
+        secure=config.COOKIE_SEGURO, httponly=True, samesite="strict",
+    )
+
+
+def _apagar_cookie_mfa(resposta: Response) -> None:
+    resposta.delete_cookie(config.NOME_COOKIE_MFA, path="/", secure=config.COOKIE_SEGURO,
+                           httponly=True, samesite="strict")
 
 
 # ---------------------------------------------------------------- modelos
@@ -200,6 +232,11 @@ class CadastroIn(Modelo):
 class LoginIn(Modelo):
     identificador: Texto254
     senha: Texto128
+
+
+class CodigoIn(Modelo):
+    # 6 dígitos do aplicativo ou código de recuperação (xxxxx-xxxxx).
+    codigo: Texto20
 
 
 class CompradorIn(Modelo):
@@ -320,17 +357,208 @@ def login(dados: LoginIn, request: Request):
         if precisa_rehash(usuario.senha_hash):
             valores["senha_hash"] = gerar_hash_senha(dados.senha)
         conn.execute(update(db.usuarios).where(db.usuarios.c.id == usuario.id).values(**valores))
-        conn.execute(delete(db.sessoes).where(db.sessoes.c.expira_em < momento))
-        token = novo_token()
-        expira = momento + timedelta(seconds=config.INATIVIDADE_S)
-        conn.execute(insert(db.sessoes).values(
-            token_hash=hash_token(token), usuario_id=usuario.id, criada_em=momento,
-            ultima_atividade=momento, expira_em=expira))
 
-    resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel,
+        estado_mfa = conn.execute(select(db.mfa).where(
+            db.mfa.c.usuario_id == usuario.id, db.mfa.c.ativo.is_(True))).first()
+        if estado_mfa:
+            if estado_mfa.travado:
+                registrar_evento("mfa_conta_travada", usuario_id=usuario.id, ip=ip_do_cliente(request))
+                return erro(423, "conta_travada")
+            # Senha certa ainda não dá acesso: abre só a etapa do código (5 min).
+            conn.execute(delete(db.pre_sessoes).where(or_(
+                db.pre_sessoes.c.expira_em < momento, db.pre_sessoes.c.usuario_id == usuario.id)))
+            token_mfa = novo_token()
+            conn.execute(insert(db.pre_sessoes).values(
+                token_hash=hash_token(token_mfa), usuario_id=usuario.id, tentativas=0,
+                expira_em=momento + timedelta(seconds=config.PRE_SESSAO_S)))
+            registrar_evento("mfa_solicitado", usuario_id=usuario.id)
+            resposta = JSONResponse({"mfaNecessario": True})
+            _definir_cookie_mfa(resposta, token_mfa)
+            return resposta
+
+        token, expira = _criar_sessao(conn, usuario.id, momento)
+
+    resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel, "mfa": False,
                              "expiraEm": int(expira.timestamp() * 1000)})
     _definir_cookie(resposta, token)
     return resposta
+
+
+# ---------------------------------------------------------------- verificação em duas etapas
+
+def _conferir_codigo(conn, usuario_id: int, estado, codigo: str, momento: datetime) -> bool:
+    """Aceita o código do aplicativo ou um código de recuperação (uso único)."""
+    codigo = codigo.strip().replace(" ", "")
+    if len(codigo) == mfa.DIGITOS and codigo.isdigit():
+        segredo = mfa.decifrar(estado.segredo_cifrado, usuario_id)
+        passo = mfa.verificar_totp(segredo, codigo, estado.ultimo_passo, momento.timestamp())
+        if passo is None:
+            return False
+        # Condição no UPDATE: dois pedidos simultâneos com o mesmo código, só um passa.
+        resultado = conn.execute(update(db.mfa).where(
+            db.mfa.c.usuario_id == usuario_id, db.mfa.c.ultimo_passo < passo).values(ultimo_passo=passo))
+        return resultado.rowcount == 1
+    normalizado = mfa.normalizar_recuperacao(codigo)
+    if not normalizado:
+        return False
+    resultado = conn.execute(update(db.mfa_recuperacao).where(
+        db.mfa_recuperacao.c.usuario_id == usuario_id,
+        db.mfa_recuperacao.c.codigo_hash == mfa.hash_recuperacao(normalizado),
+        db.mfa_recuperacao.c.usado_em.is_(None)).values(usado_em=momento))
+    if resultado.rowcount == 1:
+        registrar_evento("mfa_recuperacao_usada", usuario_id=usuario_id)
+        return True
+    return False
+
+
+def _registrar_falha_mfa(conn, usuario_id: int, estado, request: Request) -> bool:
+    """Conta o erro na conta. Devolve True se a conta acabou de travar."""
+    falhas = estado.falhas + 1
+    travou = falhas >= MFA_FALHAS_ATE_TRAVAR
+    conn.execute(update(db.mfa).where(db.mfa.c.usuario_id == usuario_id)
+                 .values(falhas=falhas, travado=travou or estado.travado))
+    registrar_evento("mfa_falhou", usuario_id=usuario_id, ip=ip_do_cliente(request))
+    if travou:
+        conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.usuario_id == usuario_id))
+        conn.execute(delete(db.sessoes).where(db.sessoes.c.usuario_id == usuario_id))
+        registrar_evento("mfa_travado", usuario_id=usuario_id, ip=ip_do_cliente(request))
+    return travou
+
+
+@app.post("/api/auth/mfa")
+def login_mfa(dados: CodigoIn, request: Request):
+    exigir_taxa(request, "mfa", 10)
+    token_mfa = request.cookies.get(config.NOME_COOKIE_MFA)
+    if not token_mfa or len(token_mfa) > 100:
+        return erro(401, "etapa_expirada")
+    momento = agora()
+    with db.engine.begin() as conn:
+        pre = conn.execute(select(db.pre_sessoes).where(
+            db.pre_sessoes.c.token_hash == hash_token(token_mfa)).with_for_update()).first()
+        if not pre or momento >= utc(pre.expira_em):
+            if pre:
+                conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.id == pre.id))
+            return erro(401, "etapa_expirada")
+        estado = conn.execute(select(db.mfa).where(
+            db.mfa.c.usuario_id == pre.usuario_id, db.mfa.c.ativo.is_(True)).with_for_update()).first()
+        if not estado or estado.travado:
+            conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.usuario_id == pre.usuario_id))
+            return erro(423, "conta_travada") if estado else erro(401, "etapa_expirada")
+
+        try:
+            correto = _conferir_codigo(conn, pre.usuario_id, estado, dados.codigo, momento)
+        except RuntimeError as exc:
+            registrar_evento("mfa_indisponivel", motivo=str(exc))
+            return erro(503, "mfa_indisponivel")
+
+        if not correto:
+            if _registrar_falha_mfa(conn, pre.usuario_id, estado, request):
+                return erro(423, "conta_travada")
+            tentativas = pre.tentativas + 1
+            if tentativas >= MFA_TENTATIVAS_POR_ETAPA:
+                # Esgotou a etapa: precisa digitar a senha de novo (que tem o próprio limite).
+                conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.id == pre.id))
+                return erro(401, "codigo_invalido", reiniciar=True)
+            conn.execute(update(db.pre_sessoes).where(db.pre_sessoes.c.id == pre.id)
+                         .values(tentativas=tentativas))
+            return erro(401, "codigo_invalido", tentativasRestantes=MFA_TENTATIVAS_POR_ETAPA - tentativas)
+
+        conn.execute(update(db.mfa).where(db.mfa.c.usuario_id == pre.usuario_id).values(falhas=0))
+        conn.execute(delete(db.pre_sessoes).where(db.pre_sessoes.c.id == pre.id))
+        usuario = conn.execute(select(db.usuarios.c.usuario, db.usuarios.c.papel)
+                               .where(db.usuarios.c.id == pre.usuario_id)).first()
+        token, expira = _criar_sessao(conn, pre.usuario_id, momento)
+
+    registrar_evento("mfa_ok", usuario_id=pre.usuario_id)
+    resposta = JSONResponse({"usuario": usuario.usuario, "papel": usuario.papel, "mfa": True,
+                             "expiraEm": int(expira.timestamp() * 1000)})
+    _apagar_cookie_mfa(resposta)
+    _definir_cookie(resposta, token)
+    return resposta
+
+
+@app.post("/api/mfa/iniciar")
+def mfa_iniciar(request: Request, sessao_atual: Annotated[dict, Depends(exigir_login)]):
+    """Gera um segredo novo (ainda inativo) e devolve o QR code para o aplicativo."""
+    exigir_taxa(request, "mfa_config", 10)
+    if not mfa.disponivel():
+        return erro(503, "mfa_indisponivel")
+    usuario_id = sessao_atual["usuario_id"]
+    segredo = mfa.novo_segredo()
+    with db.engine.begin() as conn:
+        atual = conn.execute(select(db.mfa.c.ativo).where(db.mfa.c.usuario_id == usuario_id)).first()
+        if atual and atual.ativo:
+            return erro(409, "mfa_ja_ativo")
+        conn.execute(delete(db.mfa).where(db.mfa.c.usuario_id == usuario_id))
+        conn.execute(insert(db.mfa).values(
+            usuario_id=usuario_id, segredo_cifrado=mfa.cifrar(segredo, usuario_id), ativo=False,
+            ultimo_passo=0, falhas=0, travado=False, criado_em=agora()))
+    chave = mfa.segredo_base32(segredo)
+    return {
+        "qr": mfa.qr_svg_data_uri(mfa.uri_otpauth(segredo, sessao_atual["usuario"])),
+        "chave": " ".join(chave[i:i + 4] for i in range(0, len(chave), 4)),
+        "conta": f"{mfa.EMISSOR} ({sessao_atual['usuario']})",
+    }
+
+
+@app.post("/api/mfa/confirmar")
+def mfa_confirmar(dados: CodigoIn, request: Request, sessao_atual: Annotated[dict, Depends(exigir_login)]):
+    """Primeiro código do aplicativo: ativa o MFA e entrega os códigos de recuperação."""
+    exigir_taxa(request, "mfa_config", 10)
+    usuario_id = sessao_atual["usuario_id"]
+    momento = agora()
+    with db.engine.begin() as conn:
+        estado = conn.execute(select(db.mfa).where(db.mfa.c.usuario_id == usuario_id)).first()
+        if not estado or estado.ativo:
+            return erro(409, "mfa_nao_iniciado" if not estado else "mfa_ja_ativo")
+        codigo = dados.codigo.strip().replace(" ", "")
+        try:
+            passo = mfa.verificar_totp(mfa.decifrar(estado.segredo_cifrado, usuario_id), codigo, 0,
+                                       momento.timestamp())
+        except RuntimeError as exc:
+            registrar_evento("mfa_indisponivel", motivo=str(exc))
+            return erro(503, "mfa_indisponivel")
+        if passo is None:
+            return erro(400, "codigo_invalido")
+        conn.execute(update(db.mfa).where(db.mfa.c.usuario_id == usuario_id)
+                     .values(ativo=True, ultimo_passo=passo, falhas=0, travado=False))
+        codigos = mfa.novos_codigos_recuperacao()
+        conn.execute(delete(db.mfa_recuperacao).where(db.mfa_recuperacao.c.usuario_id == usuario_id))
+        conn.execute(insert(db.mfa_recuperacao), [
+            {"usuario_id": usuario_id, "codigo_hash": mfa.hash_recuperacao(mfa.normalizar_recuperacao(c))}
+            for c in codigos])
+        # Outras sessões abertas antes da ativação são encerradas.
+        conn.execute(delete(db.sessoes).where(db.sessoes.c.usuario_id == usuario_id,
+                                              db.sessoes.c.id != sessao_atual["sessao_id"]))
+    registrar_evento("mfa_ativado", usuario_id=usuario_id)
+    return {"codigosRecuperacao": codigos}
+
+
+@app.post("/api/mfa/desativar")
+def mfa_desativar(dados: CodigoIn, request: Request, sessao_atual: Annotated[dict, Depends(exigir_login)]):
+    exigir_taxa(request, "mfa_config", 10)
+    usuario_id = sessao_atual["usuario_id"]
+    if sessao_atual["papel"] in db.PAPEIS_OPERADOR:
+        return erro(403, "mfa_obrigatorio")
+    momento = agora()
+    with db.engine.begin() as conn:
+        estado = conn.execute(select(db.mfa).where(
+            db.mfa.c.usuario_id == usuario_id, db.mfa.c.ativo.is_(True)).with_for_update()).first()
+        if not estado:
+            return erro(409, "mfa_inativo")
+        try:
+            correto = _conferir_codigo(conn, usuario_id, estado, dados.codigo, momento)
+        except RuntimeError as exc:
+            registrar_evento("mfa_indisponivel", motivo=str(exc))
+            return erro(503, "mfa_indisponivel")
+        if not correto:
+            if _registrar_falha_mfa(conn, usuario_id, estado, request):
+                return erro(423, "conta_travada")
+            return erro(400, "codigo_invalido")
+        conn.execute(delete(db.mfa_recuperacao).where(db.mfa_recuperacao.c.usuario_id == usuario_id))
+        conn.execute(delete(db.mfa).where(db.mfa.c.usuario_id == usuario_id))
+    registrar_evento("mfa_desativado", usuario_id=usuario_id)
+    return {"ok": True}
 
 
 @app.post("/api/auth/logout", status_code=204)
@@ -341,6 +569,7 @@ def logout(request: Request):
             conn.execute(delete(db.sessoes).where(db.sessoes.c.token_hash == hash_token(token)))
     resposta = Response(status_code=204)
     _apagar_cookie(resposta)
+    _apagar_cookie_mfa(resposta)
     return resposta
 
 

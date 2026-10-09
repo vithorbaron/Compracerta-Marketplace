@@ -32,6 +32,7 @@ function montarCabecalhoConta() {
   if (!sessao) return;
   document.getElementById("texto-conta").textContent = sessao.usuario;
   document.getElementById("link-pedidos").hidden = false;
+  document.getElementById("link-seguranca").hidden = false;
   if (["financeiro", "ceo"].includes(sessao.papel)) document.getElementById("link-painel").hidden = false;
   const botaoSair = document.getElementById("botao-sair");
   botaoSair.hidden = false;

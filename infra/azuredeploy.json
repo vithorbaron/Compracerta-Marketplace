@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "17797186631118492662"
+      "templateHash": "8874885416274110628"
     }
   },
   "parameters": {
@@ -82,6 +82,13 @@
       "metadata": {
         "description": "Senha do banco. Gerada automaticamente e guardada só no Key Vault."
       }
+    },
+    "chaveMfa": {
+      "type": "securestring",
+      "minLength": 32,
+      "metadata": {
+        "description": "Chave que cifra os segredos da verificação em duas etapas (40 ou mais caracteres aleatórios). Guarde-a e use a MESMA ao reimplantar: outra chave invalida os MFAs ativos."
+      }
     }
   },
   "variables": {
@@ -156,6 +163,17 @@
       "name": "[format('{0}/{1}', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'senha-banco')]",
       "properties": {
         "value": "[parameters('senhaBanco')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13)))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'chave-mfa')]",
+      "properties": {
+        "value": "[parameters('chaveMfa')]"
       },
       "dependsOn": [
         "[resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13)))]"
@@ -381,6 +399,7 @@
         "PGUSER": "[variables('usuarioBanco')]",
         "PGSSLMODE": "require",
         "PGPASSWORD": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'senha-banco'), '2023-07-01').secretUriWithVersion)]",
+        "MFA_CHAVE": "[format('@Microsoft.KeyVault(SecretUri={0})', reference(resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'chave-mfa'), '2023-07-01').secretUriWithVersion)]",
         "IMAGENS_BLOB_URL": "[format('{0}{1}', reference(resourceId('Microsoft.Storage/storageAccounts', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11))), '2023-05-01').primaryEndpoints.blob, 'produtos')]",
         "ORIGENS_PERMITIDAS": "[format('https://{0}', reference(resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), '2023-12-01').defaultHostName)]",
         "TRUST_PROXY": "1",
@@ -394,6 +413,7 @@
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers/firewallRules', format('psql-{0}-{1}', parameters('prefixo'), variables('sufixo')), 'PermitirServicosAzure')]",
         "[resourceId('Microsoft.DBforPostgreSQL/flexibleServers', format('psql-{0}-{1}', parameters('prefixo'), variables('sufixo')))]",
         "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'senha-banco')]",
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', format('kv-cc-{0}', take(variables('sufixo'), 13)), 'chave-mfa')]",
         "[resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo')))]",
         "[extensionResourceId(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('st{0}{1}', take(parameters('prefixo'), 9), take(variables('sufixo'), 11)), 'default', 'produtos'), resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), variables('papel').leitorBlobs))]",
         "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13))), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', format('kv-cc-{0}', take(variables('sufixo'), 13))), resourceId('Microsoft.Web/sites', format('app-{0}-{1}', parameters('prefixo'), variables('sufixo'))), variables('papel').usuarioSegredosCofre))]"

@@ -29,6 +29,7 @@
 
   const MENSAGEM_CADASTRO_RECUSADO = "Não foi possível criar a conta com esses dados.";
   const MENSAGEM_LOGIN_INVALIDO = "Usuário/e-mail ou senha incorretos.";
+  const MENSAGEM_CONTA_TRAVADA = "Conta bloqueada por segurança após muitos códigos incorretos. Procure o administrador.";
 
   // ---------------------------------------------------------------
   // Anti-clickjacking (segunda camada; o servidor envia frame-ancestors 'none').
@@ -185,10 +186,18 @@
       identificador: String(identificador || "").trim(),
       senha: String(senha || ""),
     });
+    if (r.ok && r.dados.mfaNecessario === true) {
+      // Senha certa: falta o código do aplicativo autenticador.
+      return { ok: false, mfa: true };
+    }
     if (r.ok) {
       const resumo = guardarResumo(r.dados);
       if (!resumo) return { ok: false, erro: MENSAGEM_LOGIN_INVALIDO };
-      return { ok: true, usuario: resumo.usuario, papel: resumo.papel };
+      return { ok: true, usuario: resumo.usuario, papel: resumo.papel, mfa: r.dados.mfa === true };
+    }
+    if (r.status === 423) {
+      log.registrar("conta_travada", {});
+      return { ok: false, erro: MENSAGEM_CONTA_TRAVADA };
     }
     if (r.status === 429) {
       const espera = Number.isInteger(r.dados.esperaSegundos) && r.dados.esperaSegundos > 0 ? r.dados.esperaSegundos : 60;
@@ -197,6 +206,27 @@
     }
     log.registrar("login_falhou", { status: r.status });
     return { ok: false, erro: MENSAGEM_LOGIN_INVALIDO };
+  }
+
+  /** Segunda etapa do login: código do aplicativo ou de recuperação. */
+  async function verificarCodigo(codigo) {
+    const r = await chamarApi("POST", "/api/auth/mfa", { codigo: String(codigo || "").trim().slice(0, 20) });
+    if (r.ok) {
+      const resumo = guardarResumo(r.dados);
+      if (!resumo) return { ok: false, reiniciar: true, erro: MENSAGEM_LOGIN_INVALIDO };
+      return { ok: true, usuario: resumo.usuario, papel: resumo.papel, mfa: true };
+    }
+    log.registrar("mfa_falhou", { status: r.status });
+    if (r.status === 423) return { ok: false, reiniciar: true, erro: MENSAGEM_CONTA_TRAVADA };
+    if (r.status === 429) return { ok: false, erro: "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente." };
+    if (r.dados.erro === "etapa_expirada" || r.dados.reiniciar === true) {
+      return { ok: false, reiniciar: true, erro: "Por segurança, entre com sua senha novamente." };
+    }
+    const restantes = Number.isInteger(r.dados.tentativasRestantes) ? r.dados.tentativasRestantes : null;
+    return {
+      ok: false,
+      erro: "Código incorreto." + (restantes ? " Restam " + restantes + " tentativa(s) antes de pedir a senha de novo." : ""),
+    };
   }
 
   function consumirAvisoCadastro() {
@@ -211,7 +241,9 @@
   window.Auth = Object.freeze({
     cadastrarUsuario,
     autenticar,
+    verificarCodigo,
     consumirAvisoCadastro,
+    PAPEIS_OPERADOR: Object.freeze(["financeiro", "ceo", "rede", "seguranca"]),
   });
 
   // Guarda de rota declarada no próprio <script>.

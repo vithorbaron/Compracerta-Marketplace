@@ -177,7 +177,7 @@
         return;
       }
       if (r.status === 403) {
-        window.location.replace("../index.html");
+        window.location.replace(r.dados.erro === "mfa_obrigatorio" ? "conta.html?motivo=mfa" : "../index.html");
         return;
       }
       if (!r.ok) {

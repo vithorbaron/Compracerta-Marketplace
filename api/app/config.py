@@ -51,10 +51,13 @@ ORIGENS_PERMITIDAS = {
 CONFIAR_PROXY = _bool("TRUST_PROXY", False)
 COOKIE_SEGURO = _bool("COOKIE_SEGURO", True)
 NOME_COOKIE = "__Host-cc_sessao" if COOKIE_SEGURO else "cc_sessao"
+# Etapa do código de verificação (entre a senha e a sessão).
+NOME_COOKIE_MFA = "__Host-cc_mfa" if COOKIE_SEGURO else "cc_mfa"
 # Endereço do container privado de imagens (Blob Storage). Só a aplicação o usa:
 # o navegador recebe as fotos pela rota /imagens/ do próprio site.
 IMAGENS_BLOB_URL = os.environ.get("IMAGENS_BLOB_URL", "").rstrip("/")
 
 INATIVIDADE_S = 30 * 60
 DURACAO_MAXIMA_S = 8 * 60 * 60
+PRE_SESSAO_S = 5 * 60
 LIMITE_CORPO_BYTES = 16 * 1024

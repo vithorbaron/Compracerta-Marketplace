@@ -1,6 +1,7 @@
 /**
  * login.js — formulário de login (pages/login.html).
- * A verificação da senha e o bloqueio de tentativas são feitos pela API.
+ * A verificação da senha, do código do aplicativo autenticador e o bloqueio
+ * de tentativas são feitos pela API.
  */
 (function () {
   "use strict";
@@ -10,6 +11,9 @@
   const botao = form.querySelector("button[type=submit]");
   const campoIdentificador = document.getElementById("identificador");
   const campoSenha = document.getElementById("senha");
+  const formCodigo = document.getElementById("formCodigo");
+  const botaoCodigo = formCodigo.querySelector("button[type=submit]");
+  const campoCodigo = document.getElementById("codigo");
   const avisoErro = document.getElementById("formError");
   const avisoSucesso = document.getElementById("formSuccess");
 
@@ -21,6 +25,29 @@
   function esconder(elemento) {
     elemento.classList.remove("visible");
     elemento.textContent = "";
+  }
+
+  function etapaSenha() {
+    formCodigo.hidden = true;
+    form.hidden = false;
+    campoCodigo.value = "";
+    campoSenha.focus();
+  }
+
+  function etapaCodigo() {
+    form.hidden = true;
+    formCodigo.hidden = false;
+    campoCodigo.value = "";
+    campoCodigo.focus();
+  }
+
+  function seguir(resultado) {
+    if (window.Auth.PAPEIS_OPERADOR.indexOf(resultado.papel) !== -1 && !resultado.mfa) {
+      // Operador sem verificação em duas etapas: precisa ativar antes de usar a área interna.
+      window.location.href = "conta.html?motivo=mfa";
+      return;
+    }
+    window.location.href = PAPEIS_PAINEL.indexOf(resultado.papel) !== -1 ? "dashboard.html" : "../index.html";
   }
 
   if (window.Auth.consumirAvisoCadastro()) {
@@ -42,6 +69,10 @@
     try {
       const resultado = await window.Auth.autenticar(identificador, senha);
       campoSenha.value = "";
+      if (resultado.mfa && !resultado.ok) {
+        etapaCodigo();
+        return;
+      }
       if (!resultado.ok) {
         if (resultado.bloqueado) {
           mostrar(avisoErro, "Muitas tentativas sem sucesso. Aguarde " + resultado.esperaSegundos + " segundos e tente novamente.");
@@ -50,11 +81,42 @@
         }
         return;
       }
-      window.location.href = PAPEIS_PAINEL.indexOf(resultado.papel) !== -1 ? "dashboard.html" : "../index.html";
+      seguir(resultado);
     } catch (erro) {
       mostrar(avisoErro, erro instanceof ErroApi ? erro.mensagemUsuario : "Não foi possível entrar agora. Tente novamente.");
     } finally {
       botao.disabled = false;
     }
+  });
+
+  formCodigo.addEventListener("submit", async function (evento) {
+    evento.preventDefault();
+    esconder(avisoErro);
+    const codigo = campoCodigo.value.trim();
+    if (!/^(\d{6}|[a-z0-9]{5}-?[a-z0-9]{5})$/i.test(codigo)) {
+      mostrar(avisoErro, "Digite os 6 números do aplicativo ou um código de recuperação.");
+      return;
+    }
+
+    botaoCodigo.disabled = true;
+    try {
+      const resultado = await window.Auth.verificarCodigo(codigo);
+      campoCodigo.value = "";
+      if (resultado.ok) {
+        seguir(resultado);
+        return;
+      }
+      mostrar(avisoErro, resultado.erro);
+      if (resultado.reiniciar) etapaSenha();
+    } catch (erro) {
+      mostrar(avisoErro, erro instanceof ErroApi ? erro.mensagemUsuario : "Não foi possível verificar agora. Tente novamente.");
+    } finally {
+      botaoCodigo.disabled = false;
+    }
+  });
+
+  document.getElementById("voltarSenha").addEventListener("click", function () {
+    esconder(avisoErro);
+    etapaSenha();
   });
 })();

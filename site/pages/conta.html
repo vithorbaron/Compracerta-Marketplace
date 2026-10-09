@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'">
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segurança da conta — CompraCerta</title>
+<meta name="description" content="Verificação em duas etapas da sua conta CompraCerta.">
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/auth.css">
+<script src="../js/seguranca-log.js"></script>
+<script src="../js/armazenamento.js"></script>
+<script src="../js/api.js"></script>
+<script src="../js/auth.js" data-exigir-sessao data-login="login.html"></script>
+</head>
+<body>
+
+<p class="study-banner">Projeto acadêmico — ambiente de demonstração.</p>
+
+<header class="auth-header">
+  <div class="container">
+    <a class="logo" href="../index.html">Compra<span>Certa</span></a>
+  </div>
+</header>
+
+<main class="auth-shell">
+  <div class="auth-card">
+    <p class="auth-eyebrow">Segurança da conta</p>
+    <h1>Verificação em duas etapas</h1>
+    <p class="auth-sub" id="mfaStatus">Carregando…</p>
+
+    <div class="form-banner success" id="formSuccess" role="status"></div>
+    <div class="form-banner error" id="formError" role="alert"></div>
+
+    <p class="field-hint" id="avisoOperador" hidden>Obrigatória para contas de operador: sem ela, a área interna não abre.</p>
+
+    <section id="secAtivar" hidden>
+      <p class="auth-sub">Depois da senha, o site pede um código de 6 dígitos gerado no seu celular. Nenhum código é enviado por e-mail ou SMS.</p>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="btnAtivar">Ativar</button>
+    </section>
+
+    <section id="secQr" hidden>
+      <ol class="mfa-passos">
+        <li>Instale um aplicativo autenticador (Google Authenticator, Microsoft Authenticator ou Authy).</li>
+        <li>No aplicativo, toque em <b>+</b> e leia o QR code abaixo.</li>
+        <li>Digite o código de 6 dígitos que aparecer para <span id="nomeConta"></span>.</li>
+      </ol>
+      <div class="mfa-qr" id="qrArea"></div>
+      <p class="field-hint">Sem câmera? Digite a chave no aplicativo: <code id="chaveManual"></code></p>
+      <form id="formConfirmar" novalidate>
+        <div class="field">
+          <label for="codigoConfirmar">Código do aplicativo</label>
+          <input class="input" type="text" id="codigoConfirmar" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Confirmar e ativar</button>
+      </form>
+    </section>
+
+    <section id="secCodigos" hidden>
+      <p class="auth-sub"><b>Guarde estes códigos de recuperação agora.</b> Cada um vale uma vez, se você perder o celular. Eles não serão mostrados de novo.</p>
+      <ul class="mfa-codigos" id="listaCodigos"></ul>
+      <p class="field-hint">Guarde num gerenciador de senhas ou impresso. Nunca no GitHub ou em grupos de mensagem.</p>
+      <button type="button" class="btn btn-secondary btn-block" id="btnCopiar">Copiar códigos</button>
+      <button type="button" class="btn btn-primary btn-block" id="btnConcluir">Já guardei</button>
+    </section>
+
+    <section id="secDesativar" hidden>
+      <form id="formDesativar" novalidate>
+        <div class="field">
+          <label for="codigoDesativar">Para desativar, digite um código do aplicativo</label>
+          <input class="input" type="text" id="codigoDesativar" inputmode="numeric" autocomplete="one-time-code" maxlength="11" placeholder="123456" required>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-block">Desativar</button>
+      </form>
+    </section>
+
+    <p class="auth-footer"><a href="../index.html">Voltar à loja</a></p>
+  </div>
+</main>
+
+<script src="../js/dom.js"></script>
+<script src="../js/conta.js"></script>
+
+</body>
+</html>

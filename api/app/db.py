@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from sqlalchemy import (
-    BigInteger, Column, DateTime, ForeignKey, Integer, MetaData, String, Table,
+    BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, MetaData, String, Table,
     create_engine, func, insert, select, text, update,
 )
 
@@ -35,6 +35,39 @@ sessoes = Table(
     Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("criada_em", DateTime(timezone=True), nullable=False),
     Column("ultima_atividade", DateTime(timezone=True), nullable=False),
+    Column("expira_em", DateTime(timezone=True), nullable=False, index=True),
+)
+
+# Verificação em duas etapas. Tabelas próprias: bancos já existentes ganham o
+# MFA sem alterar a tabela de usuários.
+mfa = Table(
+    "mfa", metadata,
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
+    Column("segredo_cifrado", String(200), nullable=False),
+    Column("ativo", Boolean, nullable=False, default=False),
+    # Último passo de 30 s aceito: o mesmo código não vale duas vezes.
+    Column("ultimo_passo", BigInteger, nullable=False, default=0),
+    # Erros de código acumulados desde o último acerto; no limite, a conta trava.
+    Column("falhas", Integer, nullable=False, default=0),
+    Column("travado", Boolean, nullable=False, default=False),
+    Column("criado_em", DateTime(timezone=True), nullable=False),
+)
+
+mfa_recuperacao = Table(
+    "mfa_recuperacao", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("codigo_hash", String(64), nullable=False),
+    Column("usado_em", DateTime(timezone=True), nullable=True),
+)
+
+# Etapa entre a senha correta e o código: não dá acesso a nada.
+pre_sessoes = Table(
+    "pre_sessoes", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("tentativas", Integer, nullable=False, default=0),
     Column("expira_em", DateTime(timezone=True), nullable=False, index=True),
 )
 
@@ -78,6 +111,8 @@ itens_pedido = Table(
 
 
 PAPEIS_VALIDOS = ("cliente", "financeiro", "ceo", "rede", "seguranca")
+# Papéis internos: a verificação em duas etapas é obrigatória para eles.
+PAPEIS_OPERADOR = ("financeiro", "ceo", "rede", "seguranca")
 
 
 def _papeis_configurados() -> dict[str, str]:

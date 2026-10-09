@@ -36,6 +36,11 @@ param ambienteGithub string = 'producao'
 @secure()
 param senhaBanco string = '${newGuid()}${newGuid()}'
 
+@description('Chave que cifra os segredos da verificação em duas etapas (40 ou mais caracteres aleatórios). Guarde-a e use a MESMA ao reimplantar: outra chave invalida os MFAs ativos.')
+@secure()
+@minLength(32)
+param chaveMfa string
+
 var sufixo = uniqueString(resourceGroup().id)
 var usuarioBanco = 'ccadmin'
 var nomeBanco = 'compracerta'
@@ -83,6 +88,12 @@ resource segredoBanco 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: cofre
   name: 'senha-banco'
   properties: { value: senhaBanco }
+}
+
+resource segredoMfa 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: cofre
+  name: 'chave-mfa'
+  properties: { value: chaveMfa }
 }
 
 // ---------------------------------------------------------------- banco (PostgreSQL)
@@ -233,6 +244,7 @@ resource configuracoesSite 'Microsoft.Web/sites/config@2023-12-01' = {
     PGUSER: usuarioBanco
     PGSSLMODE: 'require'
     PGPASSWORD: '@Microsoft.KeyVault(SecretUri=${segredoBanco.properties.secretUriWithVersion})'
+    MFA_CHAVE: '@Microsoft.KeyVault(SecretUri=${segredoMfa.properties.secretUriWithVersion})'
     IMAGENS_BLOB_URL: '${armazenamento.properties.primaryEndpoints.blob}${containerProdutos.name}'
     ORIGENS_PERMITIDAS: 'https://${site.properties.defaultHostName}'
     TRUST_PROXY: '1'

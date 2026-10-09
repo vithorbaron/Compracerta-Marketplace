@@ -14,6 +14,7 @@
         { "objectId": "00000000-0000-0000-0000-000000000005", "papel": "seguranca" }
       ]
     },
-    "repositorioGithub": { "value": "vithorbaron/Compracerta-Marketplace" }
+    "repositorioGithub": { "value": "vithorbaron/Compracerta-Marketplace" },
+    "chaveMfa": { "value": "GERE-40-OU-MAIS-CARACTERES-ALEATORIOS-E-GUARDE" }
   }
 }
