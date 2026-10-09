@@ -3,7 +3,7 @@ fastapi==0.141.1
 starlette==1.7.0
 uvicorn==0.34.3
 SQLAlchemy==2.0.54
-psycopg[binary]==3.2.13
+psycopg[binary]==3.3.6
 argon2-cffi==25.1.0
 # Verificação em duas etapas: QR code (sem dependências) e cifra do segredo.
 segno==1.6.6
