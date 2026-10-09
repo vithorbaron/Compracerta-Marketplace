@@ -1,7 +1,7 @@
 fastapi==0.141.1
 # Fixado acima do mínimo do FastAPI por correções de segurança.
 starlette==1.7.0
-uvicorn==0.34.3
+uvicorn==0.54.0
 SQLAlchemy==2.0.54
 psycopg[binary]==3.2.13
 argon2-cffi==25.1.0
